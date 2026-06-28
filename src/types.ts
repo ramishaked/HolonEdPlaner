@@ -78,3 +78,32 @@ export interface ActionPlan {
   breakthroughReason1?: string;
   breakthroughReason2?: string;
 }
+
+// --- מסך ההגדרות (settings): the school's "business card" / identity ---
+export interface SchoolFileMeta {
+  name: string;
+  size: number; // bytes
+  type: string; // mime
+}
+
+export interface SchoolProfile {
+  principalName: string;
+  principalSeniority: string; // free text (e.g. "8 שנים")
+  studentCount: string; // free text
+  vision: string;
+  goals: string;
+  uniqueness: string;
+  logoDataUrl: string; // base64 data URL for a small logo image
+  files: SchoolFileMeta[]; // attached docs/presentations (metadata; storage in Phase 2)
+}
+
+export const EMPTY_SCHOOL_PROFILE: SchoolProfile = {
+  principalName: '',
+  principalSeniority: '',
+  studentCount: '',
+  vision: '',
+  goals: '',
+  uniqueness: '',
+  logoDataUrl: '',
+  files: [],
+};

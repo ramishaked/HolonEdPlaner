@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { PRINCIPLES_DATA } from './data';
-import { DiagnosticAnswers, ActionPlan, DiagnosticResponse } from './types';
+import { DiagnosticAnswers, ActionPlan, DiagnosticResponse, SchoolProfile, EMPTY_SCHOOL_PROFILE } from './types';
 import { OrientView } from './components/OrientView';
+import { SettingsView } from './components/SettingsView';
 import { DiagnosticView } from './components/DiagnosticView';
 import { PlanView } from './components/PlanView';
 import { ExportView } from './components/ExportView';
@@ -72,9 +73,29 @@ export default function App() {
   // principle's explanation page (e.g. assess → "עבור לדף ההסבר").
   const [orientSelected, setOrientSelected] = useState<MenuSelection>('intro');
 
-  // Settings menu (gear in the top bar) + its reset-diagnostic confirmation.
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Settings screen (opened from the gear in the top bar).
+  const [showSettings, setShowSettings] = useState(false);
+
+  // School identity profile ("business card") — persisted separately.
+  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => {
+    try {
+      const saved = localStorage.getItem('school_profile_v1');
+      return saved ? { ...EMPTY_SCHOOL_PROFILE, ...JSON.parse(saved) } : EMPTY_SCHOOL_PROFILE;
+    } catch {
+      return EMPTY_SCHOOL_PROFILE;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('school_profile_v1', JSON.stringify(schoolProfile));
+    } catch {
+      /* storage quota (e.g. large logo) — ignore for the demo */
+    }
+  }, [schoolProfile]);
+
+  const handleUpdateProfile = (fields: Partial<SchoolProfile>) =>
+    setSchoolProfile((prev) => ({ ...prev, ...fields }));
 
   // Keep localStorage sync in effect
   useEffect(() => {
@@ -204,113 +225,51 @@ export default function App() {
             </div>
           )}
 
-          {/* Settings menu — currently holds the diagnostic-data reset. */}
-          <div className="relative">
-            <button
-              type="button"
-              title="הגדרות"
-              aria-label="הגדרות"
-              aria-haspopup="menu"
-              aria-expanded={settingsOpen}
-              onClick={() => setSettingsOpen((o) => !o)}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
-                settingsOpen ? 'text-slate-700 bg-slate-100' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <i className="fa-solid fa-gear text-base"></i>
-            </button>
-
-            {settingsOpen && (
-              <>
-                {/* Click-away layer */}
-                <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)}></div>
-                <div
-                  role="menu"
-                  className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 p-1.5 text-right"
-                >
-                  <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">הגדרות</div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setSettingsOpen(false);
-                      setShowResetConfirm(true);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                  >
-                    <i className="fa-solid fa-rotate-left w-4 text-center"></i>
-                    <span className="text-xs font-bold">איפוס נתוני האבחון</span>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          {/* Settings — opens the full settings screen */}
+          <button
+            type="button"
+            title="הגדרות"
+            aria-label="הגדרות"
+            onClick={() => { setShowSettings((s) => !s); window.scrollTo({ top: 0 }); }}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+              showSettings ? 'text-slate-700 bg-slate-100' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <i className="fa-solid fa-gear text-base"></i>
+          </button>
         </div>
       </header>
 
       {/* Spacer for the fixed header */}
       <div className="h-16 print:hidden"></div>
 
-      {/* Settings → reset-diagnostic confirmation */}
-      {showResetConfirm && (
-        <div
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 print:hidden"
-          dir="rtl"
-          onClick={() => setShowResetConfirm(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 p-6 space-y-6 text-right"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 text-xl shrink-0">
-                <i className="fa-solid fa-triangle-exclamation"></i>
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-900">איפוס נתוני האבחון</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  פעולה זו תמחק את כל תשובות האבחון ואת דוח ה-AI. פרטי בית הספר ותוכנית הפעולה יישמרו. לא ניתן לשחזר — להמשיך?
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 justify-end pt-2">
-              <button
-                onClick={() => {
-                  handleResetDiagnostic();
-                  setShowResetConfirm(false);
-                }}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors shadow-lg shadow-rose-600/10 cursor-pointer"
-              >
-                איפוס
-              </button>
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Persistent journey rail — hidden while the settings screen is open */}
+      {!showSettings && (
+        <JourneyRail
+          steps={JOURNEY_STEPS}
+          currentStep={currentStep}
+          onSelect={(id) => goToStep(id as Step)}
+          assessProgress={{ done: diagnosticCompletedCount, total: 7 }}
+          coverage={PRINCIPLES_DATA.map((p) => ({
+            id: p.id,
+            title: PRINCIPLE_SHORT_TITLES[p.id] ?? p.title,
+            assessed: !!answers[p.id],
+          }))}
+        />
       )}
-
-      {/* Persistent journey rail — makes the workflow steps explicit */}
-      <JourneyRail
-        steps={JOURNEY_STEPS}
-        currentStep={currentStep}
-        onSelect={(id) => goToStep(id as Step)}
-        assessProgress={{ done: diagnosticCompletedCount, total: 7 }}
-        coverage={PRINCIPLES_DATA.map((p) => ({
-          id: p.id,
-          title: PRINCIPLE_SHORT_TITLES[p.id] ?? p.title,
-          assessed: !!answers[p.id],
-        }))}
-      />
 
       {/* Main body canvas container */}
       <main className="flex-grow pt-6 pb-12 max-w-7xl mx-auto w-full px-4 md:px-8 print:pt-0 print:pb-0 print:max-w-full">
-        {currentStep === 'export' ? (
+        {showSettings ? (
+          <SettingsView
+            profile={schoolProfile}
+            onUpdateProfile={handleUpdateProfile}
+            actionPlan={actionPlan}
+            onUpdateActionPlan={handleUpdateActionPlan}
+            onResetDiagnostic={handleResetDiagnostic}
+            onClose={() => setShowSettings(false)}
+          />
+        ) : currentStep === 'export' ? (
           <>
             <ExportView
               scores={scores}
@@ -387,8 +346,8 @@ export default function App() {
         )}
 
         {/* Printable Section - Native Paper Format Rendering Toggle (not for the
-            export zone, which prints its own live document preview) */}
-        {currentStep !== 'export' && (
+            export zone, which prints its own live document preview, nor settings) */}
+        {!showSettings && currentStep !== 'export' && (
         <div className="hidden print:block bg-white p-4">
 
           {/* PAGE 1: HEADER & RADAR SPIDER MAP */}
