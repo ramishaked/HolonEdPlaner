@@ -5,6 +5,7 @@ import { DiagnosticAnswers, ActionPlan, DiagnosticResponse } from '../types';
 import { RadarChart } from './RadarChart';
 
 interface DiagnosticViewProps {
+  step: 'workshop' | 'assess' | 'plan' | 'export';
   scores: { [key: number]: number };
   answers: DiagnosticAnswers;
   onUpdateAnswer: (principleId: number, fields: Partial<DiagnosticResponse>) => void;
@@ -16,6 +17,7 @@ interface DiagnosticViewProps {
 }
 
 export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
+  step,
   scores,
   answers,
   onUpdateAnswer,
@@ -28,7 +30,6 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
   const [activeTab, setActiveTab] = useState<number>(1); // Active principle ID for questionnaire
   const [draggedOrHoveredId, setDraggedOrHoveredId] = useState<number | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showWorkshopDetail, setShowWorkshopDetail] = useState(false);
 
   // AI Strategic wizard state
   const [aiState, setAiState] = useState<'idle' | 'initiating' | 'questions' | 'generating' | 'completed'>(
@@ -167,7 +168,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
       case 1: return 'border-red-200 bg-red-50 text-red-800';
       case 2: return 'border-amber-200 bg-amber-50 text-amber-800';
       case 3: return 'border-blue-200 bg-blue-50 text-blue-800';
-      case 4: return 'border-indigo-200 bg-indigo-50 text-indigo-800';
+      case 4: return 'border-primary-200 bg-primary-50 text-primary-800';
       default: return 'border-slate-200 bg-slate-50 text-slate-800';
     }
   };
@@ -262,36 +263,28 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
     }
   ];
 
-  if (showWorkshopDetail) {
+  if (step === 'workshop') {
     const selectedPrin = workshopPrinciples.find(p => p.id === selectedWorkshopPrinciple) || workshopPrinciples[0];
     return (
       <div className="space-y-8 animate-fade-in text-right" dir="rtl">
-        {/* Header Breadcrumb / Control Bar */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+        {/* Header */}
+        <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-indigo-650 bg-indigo-50 px-2.5 py-1 rounded-full">סדנאות ומחוונים</span>
-            <h2 className="text-xl font-black text-slate-900">פרוטוקול הסדנה והמחוון האופרטיבי המלא</h2>
+            <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full">סדנאות ומחוונים</span>
+            <h2 className="text-xl font-bold text-slate-900">פרוטוקול הסדנה והמחוון האופרטיבי המלא</h2>
             <p className="text-xs text-slate-500 font-light">
               עיינו ברמות הבשלות של שבעת העקרונות או קראו את פרוטוקול ההפעלה המודולרי להנהלה.
             </p>
           </div>
-          
-          <button
-            onClick={() => setShowWorkshopDetail(false)}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/40 rounded-xl transition-all cursor-pointer shadow-sm ml-auto md:ml-0"
-          >
-            <i className="fa-solid fa-arrow-right"></i>
-            <span>חזרה לאבחון ומפת העכביש</span>
-          </button>
         </div>
 
         {/* Big Switch Tabs */}
         <div className="flex border-b border-slate-200 gap-6">
           <button
             onClick={() => setWorkshopTab('rubrics')}
-            className={`pb-3.5 text-sm font-black transition-all border-b-2 px-2 cursor-pointer ${
+            className={`pb-3.5 text-sm font-bold transition-all border-b-2 px-2 cursor-pointer ${
               workshopTab === 'rubrics' 
-                ? 'text-indigo-600 border-indigo-600 font-bold' 
+                ? 'text-primary-600 border-primary-600 font-bold' 
                 : 'text-slate-400 border-transparent hover:text-slate-600'
             }`}
           >
@@ -301,9 +294,9 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
           
           <button
             onClick={() => setWorkshopTab('protocol')}
-            className={`pb-3.5 text-sm font-black transition-all border-b-2 px-2 cursor-pointer ${
+            className={`pb-3.5 text-sm font-bold transition-all border-b-2 px-2 cursor-pointer ${
               workshopTab === 'protocol' 
-                ? 'text-indigo-600 border-indigo-600 font-bold' 
+                ? 'text-primary-600 border-primary-600 font-bold' 
                 : 'text-slate-400 border-transparent hover:text-slate-600'
             }`}
           >
@@ -317,8 +310,8 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Sidebar Principles Menu */}
-            <div className="lg:col-span-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-2">
-              <h3 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider mb-2 pr-2">שבעת העקרונות הבית-ספריים:</h3>
+            <div className="lg:col-span-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider mb-2 pr-2">שבעת העקרונות הבית-ספריים:</h3>
               <div className="space-y-1">
                 {workshopPrinciples.map((p) => {
                   const isCur = p.id === selectedWorkshopPrinciple;
@@ -328,12 +321,12 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                       onClick={() => setSelectedWorkshopPrinciple(p.id)}
                       className={`w-full p-3 rounded-xl text-right text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
                         isCur 
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15' 
-                          : 'bg-slate-50/50 hover:bg-slate-100 text-slate-705 border border-transparent'
+                          ? 'bg-primary-600 text-white shadow-md shadow-primary-600/15' 
+                          : 'bg-slate-50/50 hover:bg-slate-100 text-slate-700 border border-transparent'
                       }`}
                     >
                       <span className="line-clamp-1">{p.title}</span>
-                      <i className={`fa-solid ${isCur ? 'fa-circle-dot text-indigo-200' : 'fa-circle text-slate-300'} text-[10px] shrink-0 mr-2`}></i>
+                      <i className={`fa-solid ${isCur ? 'fa-circle-dot text-primary-200' : 'fa-circle text-slate-300'} text-xs shrink-0 mr-2`}></i>
                     </button>
                   );
                 })}
@@ -342,11 +335,11 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
 
             {/* Principle Content Details */}
             <div className="lg:col-span-8 space-y-6">
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-2">
-                <span className="text-[10px] font-bold text-indigo-650 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">עיקרון ניתוח בשלות</span>
-                <h3 className="text-lg font-black text-slate-900 mt-2">{selectedPrin.title}</h3>
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full uppercase">עיקרון ניתוח בשלות</span>
+                <h3 className="text-lg font-bold text-slate-900 mt-2">{selectedPrin.title}</h3>
                 <p className="text-xs text-slate-500 leading-relaxed font-light">{selectedPrin.desc}</p>
-                <div className="pt-3 border-t border-slate-100/70 mt-4">
+                <div className="pt-3 border-t border-slate-200/70 mt-4">
                   <p className="text-xs text-slate-600 leading-relaxed italic">
                     המחוון להלן מפרק כל עיקרון לארבע רמות בשלות אופרטיביות. רמות אלו בוחנות את שלושת הצירים שלכם: הלשם מה (תרבות ותפיסה), האיך (סדירויות ומשאבים) והמה (תוצרים ומדידה).
                   </p>
@@ -361,26 +354,26 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                       case 1: return { border: 'border-rose-100 border-r-4 border-r-rose-500 bg-rose-50/10', text: 'text-rose-900', p: '🌱 ראשוני ("ניצוצות")', label: 'bg-rose-100 text-rose-700' };
                       case 2: return { border: 'border-amber-100 border-r-4 border-r-amber-500 bg-amber-50/10', text: 'text-amber-900', p: '🏝️ מתפתח ("איים של חדשנות")', label: 'bg-amber-100 text-amber-700' };
                       case 3: return { border: 'border-blue-100 border-r-4 border-r-blue-500 bg-blue-50/10', text: 'text-blue-900', p: '🔄 מוטמע ("שגרה מוסדית")', label: 'bg-blue-100 text-blue-700' };
-                      case 4: return { border: 'border-indigo-100 border-r-4 border-r-indigo-550 bg-indigo-50/10', text: 'text-indigo-900', p: '🚀 חלוצי ("חזון מלא")', label: 'bg-indigo-100 text-indigo-700' };
-                      default: return { border: 'border-slate-100 border-r-4 border-r-slate-500 bg-slate-50/10', text: 'text-slate-900', p: 'רמה אופרטיבית', label: 'bg-slate-100 text-slate-700' };
+                      case 4: return { border: 'border-primary-100 border-r-4 border-r-primary-500 bg-primary-50/10', text: 'text-primary-900', p: '🚀 חלוצי ("חזון מלא")', label: 'bg-primary-100 text-primary-700' };
+                      default: return { border: 'border-slate-200 border-r-4 border-r-slate-500 bg-slate-50/10', text: 'text-slate-900', p: 'רמה אופרטיבית', label: 'bg-slate-100 text-slate-700' };
                     }
                   };
                   const styles = getLvlStyles(lvl.level);
                   return (
                     <div key={lvl.level} className={`p-5 rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow duration-200 ${styles.border} space-y-3 text-right`}>
                       <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <span className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
-                          <span className={`w-5.5 h-5.5 rounded-full text-[10px] font-mono font-black text-white flex items-center justify-center bg-slate-800`}>
+                        <span className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                          <span className={`w-5 h-5 rounded-full text-xs font-mono font-bold text-white flex items-center justify-center bg-slate-800`}>
                             {lvl.level}
                           </span>
                           <span>{lvl.name}</span>
                         </span>
                         
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${styles.label}`}>
+                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${styles.label}`}>
                           {styles.p}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-650 leading-relaxed pr-7 font-light">{lvl.desc}</p>
+                      <p className="text-xs text-slate-600 leading-relaxed pr-7 font-light">{lvl.desc}</p>
                     </div>
                   );
                 })}
@@ -389,36 +382,36 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
 
           </div>
         ) : (
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-100 shadow-sm space-y-8 max-w-4xl mx-auto">
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8 max-w-4xl mx-auto">
             
             {/* Intro */}
-            <div className="space-y-2 text-right border-b border-slate-100 pb-5">
-              <span className="text-[10px] bg-indigo-50 text-indigo-600 font-bold px-2.5 py-1 rounded-full">מנהלת בית הספר והצוותים</span>
-              <h3 className="text-xl font-black text-slate-900 mt-2">פרוטוקול הפעלה מלא להנהלת בית הספר (סדנה בת 90 דקות)</h3>
+            <div className="space-y-2 text-right border-b border-slate-200 pb-5">
+              <span className="text-xs bg-primary-50 text-primary-600 font-bold px-2.5 py-1 rounded-full">מנהלת בית הספר והצוותים</span>
+              <h3 className="text-xl font-bold text-slate-900 mt-2">פרוטוקול הפעלה מלא להנהלת בית הספר (סדנה בת 90 דקות)</h3>
               <p className="text-xs text-slate-500 leading-relaxed font-light">
                 סדנה מובנית זו מאפשרת לצוות ההנהלה והמורים להציף הבדלי תפיסה ופערים, לגבש דירוג בשלות מוסכם, ולבנות תכנית אופרטיבית לאחד בספטמבר.
               </p>
             </div>
 
             {/* Stepper Steps */}
-            <div className="relative border-r border-indigo-100 pr-8 mr-4 space-y-10 text-right">
+            <div className="relative border-r border-primary-100 pr-8 mr-4 space-y-10 text-right">
               
               {/* Step 1 */}
               <div className="relative space-y-3">
                 {/* Step dot */}
-                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-indigo-650 flex items-center justify-center shrink-0 shadow-sm"></div>
+                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-primary-600 flex items-center justify-center shrink-0 shadow-sm"></div>
                 
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-mono font-black text-white bg-indigo-600 px-2.5 py-0.5 rounded-md shadow-sm">
+                  <span className="text-xs font-mono font-bold text-white bg-primary-600 px-2.5 py-0.5 rounded-md shadow-sm">
                     15 דק׳
                   </span>
-                  <h4 className="font-extrabold text-sm text-slate-900">שלב א&apos;: עבודה עצמית ורפלקציה</h4>
+                  <h4 className="font-bold text-sm text-slate-900">שלב א&apos;: עבודה עצמית ורפלקציה</h4>
                 </div>
                 
                 <p className="text-xs text-slate-600 leading-relaxed font-light max-w-3xl pr-2">
                   כל חבר הנהלה (מנהל, סגנים, רכזים פדגוגיים, רכז תקשוב, יועצת) מקבל את השאלון ומסמן באופן עצמאי, ללא התייעצות, את רמת הבשלות (1-4) שהוא מייחס לבית הספר עבור כל אחד משבעת העקרונות.
                 </p>
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-[11px] text-slate-650 max-w-2xl mt-1.5 flex gap-2 items-start shadow-sm pr-4">
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-600 max-w-2xl mt-1.5 flex gap-2 items-start shadow-sm pr-4">
                   <i className="fa-solid fa-lightbulb text-amber-500 mt-0.5 shrink-0"></i>
                   <span><strong>דגש מרכזי:</strong> ליד כל סימון, חבר הצוות כותב בקצרה פתק מעשי המהווה <strong>הנמקה והוכחה מהשטח</strong> (למה סימנתי רמה זו?).</span>
                 </div>
@@ -427,21 +420,21 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
               {/* Step 2 */}
               <div className="relative space-y-3 text-right">
                 {/* Step dot */}
-                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-indigo-650 flex items-center justify-center shrink-0 shadow-sm"></div>
+                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-primary-600 flex items-center justify-center shrink-0 shadow-sm"></div>
                 
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-mono font-black text-white bg-indigo-600 px-2.5 py-0.5 rounded-md shadow-sm">
+                  <span className="text-xs font-mono font-bold text-white bg-primary-600 px-2.5 py-0.5 rounded-md shadow-sm">
                     45 דק׳
                   </span>
-                  <h4 className="font-extrabold text-sm text-slate-900">שלב ב&apos;: הצפת הנתונים ודיון בפערים - <span className="text-indigo-600 font-black">לב הסדנה</span></h4>
+                  <h4 className="font-bold text-sm text-slate-900">שלב ב&apos;: הצפת הנתונים ודיון בפערים - <span className="text-primary-600 font-bold">לב הסדנה</span></h4>
                 </div>
                 
                 <p className="text-xs text-slate-600 leading-relaxed font-light max-w-3xl pr-2">
                   המנהל משרטט על לוח חדר הישיבות את ה&quot;רדאר&quot; הריק (עיגול המחולק ל-7 גזרות). כל חבר צוות תולה פתקית (Post-it) עם הציון שלו בגזרה המתאימה. 
                   מנהלים דיון ממוקד סביב פערים.
                 </p>
-                <div className="bg-indigo-50/30 p-3.5 rounded-xl border border-indigo-100 text-[11px] text-indigo-950 max-w-2xl mt-1.5 flex gap-2.5 items-start shadow-sm pr-4">
-                  <i className="fa-solid fa-circle-info text-indigo-550 mt-0.5 shrink-0"></i>
+                <div className="bg-primary-50/30 p-3.5 rounded-xl border border-primary-100 text-xs text-primary-950 max-w-2xl mt-1.5 flex gap-2.5 items-start shadow-sm pr-4">
+                  <i className="fa-solid fa-circle-info text-primary-500 mt-0.5 shrink-0"></i>
                   <span><strong>דוגמה לדיון בפערים:</strong> אם רכז התקשוב סימן את עיקרון 4 (BYOD) ברמה 3, אך היועצת או סגנית המנהל סימנו ברמה 1 – מבינים היכן הנתק בין התשתית הטכנולוגית לבין השטח האנושי. הדיון נועד להגיע להסכמה וציון משותף ומאוזן.</span>
                 </div>
               </div>
@@ -449,20 +442,20 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
               {/* Step 3 */}
               <div className="relative space-y-3 text-right">
                 {/* Step dot */}
-                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-indigo-650 flex items-center justify-center shrink-0 shadow-sm"></div>
+                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-primary-600 flex items-center justify-center shrink-0 shadow-sm"></div>
                 
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-mono font-black text-white bg-indigo-600 px-2.5 py-0.5 rounded-md shadow-sm">
+                  <span className="text-xs font-mono font-bold text-white bg-primary-600 px-2.5 py-0.5 rounded-md shadow-sm">
                     10 דק׳
                   </span>
-                  <h4 className="font-extrabold text-sm text-slate-900">שלב ג&apos;: שרטוט הרדאר הבית-ספרי הסופי</h4>
+                  <h4 className="font-bold text-sm text-slate-900">שלב ג&apos;: שרטוט הרדאר הבית-ספרי הסופי</h4>
                 </div>
                 
                 <p className="text-xs text-slate-600 leading-relaxed font-light max-w-3xl pr-2">
                   מחברים את הציון המוסכם של כל 7 העקרונות ומותחים קו ביניהם. מתקבלת צורה ויזואלית ברורה (&quot;הרדאר הבית-ספרי&quot;).
                 </p>
-                <div className="bg-emerald-50/40 p-3.5 rounded-xl border border-emerald-100 text-[11px] text-emerald-900 max-w-2xl mt-1.5 flex gap-2.5 items-start shadow-sm pr-4">
-                  <i className="fa-solid fa-circle-check text-emerald-555 mt-0.5 shrink-0"></i>
+                <div className="bg-emerald-50/40 p-3.5 rounded-xl border border-emerald-100 text-xs text-emerald-900 max-w-2xl mt-1.5 flex gap-2.5 items-start shadow-sm pr-4">
+                  <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i>
                   <span><strong>מה הצורה תחשוף?</strong> הצורה תחשוף מיד קריסה פנימה (פערים עמוקים המהווים יעדי פריצת דרך) או פריצה החוצה (עוגני עוצמה בית-ספריים).</span>
                 </div>
               </div>
@@ -470,11 +463,11 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
             </div>
 
             {/* Print Note */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs font-bold text-slate-650 mt-8 shadow-inner">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-bold text-slate-600 mt-8 shadow-inner">
               <span>ניתן להדפיס או לייצא פרוטוקול זה כחלק מההדפסה הכללית.</span>
               <button
                 onClick={() => window.print()}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-lg text-[10px] shadow-sm transition-colors cursor-pointer"
+                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs shadow-sm transition-colors cursor-pointer"
               >
                 ייצוא והדפסה מלאה
               </button>
@@ -492,13 +485,13 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
       {/* Custom Confirmation Modal */}
       {showResetConfirm && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 select-none animate-fade-in" dir="rtl">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 p-6 space-y-6 text-right animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 p-6 space-y-6 text-right animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 text-xl shrink-0">
                 <i className="fa-solid fa-triangle-exclamation"></i>
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-black text-slate-900">איפוס נתוני אבחון</h3>
+                <h3 className="text-base font-bold text-slate-900">איפוס נתוני אבחון</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
                   ברגע שתמשיך ותלחץ כן, נתוני האבחון יאפסו- להמשיך?
                 </p>
@@ -526,11 +519,12 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
         </div>
       )}
 
+      {step === 'assess' && (<>
       {/* Intro section */}
       <div className="glass-card rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-2 text-right">
-          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">סדנה וקנבס אבחון ומפת עכביש</span>
-          <h2 className="text-2xl font-black text-[#0f172a] tracking-tight font-sans">תהליך מיפוי הבשלות ומפת העכביש המלאה</h2>
+          <span className="text-xs font-bold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-full">סדנה וקנבס אבחון ומפת עכביש</span>
+          <h2 className="text-2xl font-bold text-[#0f172a] tracking-tight font-sans">תהליך מיפוי הבשלות ומפת העכביש המלאה</h2>
           <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
             קיימו סדנת הנהלה בת 90 דקות שבה כל חבר צוות מאפיין לבד את רמות הבשלות, ולאחר מכן דינו בפערים כדי לקבוע את המיון המוסכם. בסיום, השתמשו בתוצרים כדי לגזור מטרות ופעולות מדויקות לאחד בספטמבר.
           </p>
@@ -542,13 +536,6 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
             className="px-4 py-2 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100 rounded-lg transition-colors cursor-pointer"
           >
             <i className="fa-solid fa-trash-can mr-1"></i> איפוס נתוני אבחון
-          </button>
-          
-          <button
-            onClick={handlePrint}
-            className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg border border-blue-600 transition-colors shadow-md flex items-center gap-1.5 cursor-pointer"
-          >
-            <i className="fa-solid fa-print"></i> ייצוא והדפסה
           </button>
         </div>
       </div>
@@ -566,7 +553,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
           />
 
           {/* Quick Score Summary Panel */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
             <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider text-right">סיכום רמות בשלות נוכחיות:</h4>
             
             <div className="space-y-2.5">
@@ -578,18 +565,18 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                     key={p.id}
                     onClick={() => setActiveTab(p.id)}
                     className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${
-                      active ? 'bg-indigo-50 border border-indigo-100' : 'bg-slate-50/50 hover:bg-slate-50 border border-transparent'
+                      active ? 'bg-primary-50 border border-primary-100' : 'bg-slate-50/50 hover:bg-slate-50 border border-transparent'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-slate-400 font-mono w-4">#{p.id}</span>
-                      <span className={`text-xs font-bold ${active ? 'text-indigo-900' : 'text-slate-700'}`}>{p.title}</span>
+                      <span className="text-xs font-bold text-slate-400 font-mono w-4">#{p.id}</span>
+                      <span className={`text-xs font-bold ${active ? 'text-primary-900' : 'text-slate-700'}`}>{p.title}</span>
                     </div>
                     
                     <div className="flex items-center gap-2">
                       {/* Color indicator tag */}
-                      <span className={`w-2.5 h-2.5 rounded-full ${p.colorName === 'purple' ? 'bg-purple-500' : p.colorName === 'blue' ? 'bg-blue-500' : p.colorName === 'orange' ? 'bg-orange-500' : p.colorName === 'cyan' ? 'bg-cyan-500' : p.colorName === 'emerald' ? 'bg-emerald-500' : p.colorName === 'indigo' ? 'bg-indigo-500' : 'bg-rose-500'}`}></span>
-                      <span className="text-xs font-mono font-black text-slate-800 bg-white border border-slate-100 px-2 py-0.5 rounded shadow-sm">
+                      <span className={`w-2.5 h-2.5 rounded-full ${p.colorName === 'purple' ? 'bg-purple-500' : p.colorName === 'blue' ? 'bg-blue-500' : p.colorName === 'orange' ? 'bg-orange-500' : p.colorName === 'cyan' ? 'bg-cyan-500' : p.colorName === 'emerald' ? 'bg-emerald-500' : p.colorName === 'indigo' ? 'bg-[var(--color-spaces)]' : 'bg-rose-500'}`}></span>
+                      <span className="text-xs font-mono font-bold text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm">
                         {score.toFixed(1)}
                       </span>
                     </div>
@@ -617,7 +604,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                     onClick={() => setActiveTab(p.id)}
                     className={`px-4 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all shrink-0 cursor-pointer ${
                       isActive 
-                        ? 'text-blue-600 border-blue-600 bg-blue-50/30' 
+                        ? 'text-primary-600 border-primary-600 bg-primary-50/40'
                         : 'text-slate-500 border-transparent hover:text-slate-800'
                     }`}
                   >
@@ -631,15 +618,15 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
               
               {/* Active title and quick rationale snippet */}
               <div className="space-y-2">
-                <span className="text-[10px] font-black uppercase text-blue-500">אבחון ומיפוי שוטף</span>
-                <h3 className="text-lg md:text-xl font-black text-[#0f172a]">{currentPrinciple.title}</h3>
+                <span className="text-xs font-bold uppercase text-primary-600">אבחון ומיפוי שוטף</span>
+                <h3 className="text-lg md:text-xl font-bold text-[#0f172a]">{currentPrinciple.title}</h3>
                 <p className="text-xs text-slate-500 leading-relaxed font-light">{currentPrinciple.shortSummary}</p>
               </div>
 
               {/* Step 1: Maturity Levels Selection Matrix */}
               <div className="space-y-4">
                 <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold inline-flex items-center justify-center">א</span>
+                  <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-700 text-xs font-bold inline-flex items-center justify-center">א</span>
                   <span>בחר את רמת הבשלות המאפיינת את בית ספרך כיום:</span>
                 </h4>
 
@@ -652,14 +639,14 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                         onClick={() => onUpdateAnswer(activeTab, { selectedMaturityLevel: rubric.level })}
                         className={`p-3.5 rounded-xl border border-r-4 text-right cursor-pointer transition-all ${
                           isSelected 
-                            ? 'border-blue-600 bg-blue-50/20 border-r-blue-600 shadow-sm' 
+                            ? 'border-primary-600 bg-primary-50/30 border-r-primary-600 shadow-sm'
                             : 'border-slate-200/60 bg-white/70 hover:bg-slate-50 border-r-slate-400'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-4 mb-1">
                           <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
-                            <span className={`w-4 h-4 rounded-full text-[9px] font-black text-white flex items-center justify-center ${
-                              rubric.level === 4 ? 'bg-blue-600' : 'bg-slate-400'
+                            <span className={`w-4 h-4 rounded-full text-xs font-bold text-white flex items-center justify-center ${
+                              rubric.level === 4 ? 'bg-primary-600' : 'bg-slate-400'
                             }`}>
                               {rubric.level}
                             </span>
@@ -667,7 +654,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                           </span>
 
                           {isSelected && (
-                            <span className="text-[10px] bg-blue-600 text-white font-black px-2 py-0.5 rounded-full">
+                            <span className="text-xs bg-primary-600 text-white font-bold px-2 py-0.5 rounded-full">
                               מצב נוכחי מוסכם
                             </span>
                           )}
@@ -682,17 +669,17 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
               {/* Step 2: Rating 3 axes based on Golden Circle */}
               <div className="space-y-4 pt-4 border-t border-slate-50">
                 <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1">
-                  <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold inline-flex items-center justify-center">ב</span>
+                  <span className="w-4 h-4 rounded-full bg-primary-100 text-primary-700 text-xs font-bold inline-flex items-center justify-center">ב</span>
                   <span>דרג את שלושת צירי &quot;מעגל הזהב&quot; (מ-1 עד 4):</span>
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   
                   {/* Axis 1: Culture (Why) */}
-                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-100 space-y-3">
+                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200 space-y-3">
                     <div>
-                      <span className="block text-[10px] font-bold text-indigo-700">ציר התרבות (הלמה)</span>
-                      <span className="text-[10px] text-slate-400">האם יש הבנה והזדהות עם המטרה?</span>
+                      <span className="block text-xs font-bold text-primary-700">ציר התרבות (הלמה)</span>
+                      <span className="text-xs text-slate-400">האם יש הבנה והזדהות עם המטרה?</span>
                     </div>
 
                     <div className="flex items-center gap-1.5 justify-center">
@@ -703,7 +690,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                           onClick={() => onUpdateAnswer(activeTab, { whyScore: num })}
                           className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
                             activeAnswer.whyScore === num 
-                              ? 'bg-indigo-600 text-white' 
+                              ? 'bg-primary-600 text-white' 
                               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                           }`}
                         >
@@ -714,10 +701,10 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                   </div>
 
                   {/* Axis 2: Routines (How) */}
-                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-100 space-y-3">
+                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200 space-y-3">
                     <div>
-                      <span className="block text-[10px] font-bold text-indigo-700">ציר הסדירויות (האיך)</span>
-                      <span className="text-[10px] text-slate-400">יש עוגנים מובנים במערכת השעות?</span>
+                      <span className="block text-xs font-bold text-primary-700">ציר הסדירויות (האיך)</span>
+                      <span className="text-xs text-slate-400">יש עוגנים מובנים במערכת השעות?</span>
                     </div>
 
                     <div className="flex items-center gap-1.5 justify-center">
@@ -728,7 +715,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                           onClick={() => onUpdateAnswer(activeTab, { howScore: num })}
                           className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
                             activeAnswer.howScore === num 
-                              ? 'bg-indigo-600 text-white' 
+                              ? 'bg-primary-600 text-white' 
                               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                           }`}
                         >
@@ -739,10 +726,10 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                   </div>
 
                   {/* Axis 3: Outputs (What) */}
-                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-100 space-y-3">
+                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200 space-y-3">
                     <div>
-                      <span className="block text-[10px] font-bold text-indigo-700">ציר התוצרים (המה)</span>
-                      <span className="text-[10px] text-slate-400">תוצרים מדידים של מורה ותלמיד?</span>
+                      <span className="block text-xs font-bold text-primary-700">ציר התוצרים (המה)</span>
+                      <span className="text-xs text-slate-400">תוצרים מדידים של מורה ותלמיד?</span>
                     </div>
 
                     <div className="flex items-center gap-1.5 justify-center">
@@ -753,7 +740,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                           onClick={() => onUpdateAnswer(activeTab, { whatScore: num })}
                           className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
                             activeAnswer.whatScore === num 
-                              ? 'bg-indigo-600 text-white' 
+                              ? 'bg-primary-600 text-white' 
                               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                           }`}
                         >
@@ -769,7 +756,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
               {/* Step 3: Evidence documentation */}
               <div className="space-y-2 pt-4 border-t border-slate-50">
                 <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1">
-                  <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold inline-flex items-center justify-center">ג</span>
+                  <span className="w-4 h-4 rounded-full bg-primary-100 text-primary-700 text-xs font-bold inline-flex items-center justify-center">ג</span>
                   <span>הנמקה, הוכחות וגיבוי מהשטח (&quot;פתקית רפלקטיבית&quot;):</span>
                 </h4>
                 
@@ -778,7 +765,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                   onChange={(e) => onUpdateAnswer(activeTab, { evidence: e.target.value })}
                   placeholder="רשמו כאן נתונים, הוכחות לקביעת הציון או דברים קונקרטיים שעלו בדיון עם רכזי המקצוע או היועצת..."
                   rows={4}
-                  className="w-full p-3 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full p-3 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
 
@@ -788,7 +775,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                   type="button"
                   disabled={activeTab === 1}
                   onClick={() => setActiveTab((prev) => Math.max(1, prev - 1))}
-                  className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-100 hover:border-slate-200 rounded disabled:opacity-45"
+                  className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-200 rounded disabled:opacity-45"
                 >
                   <i className="fa-solid fa-arrow-right mr-1"></i> לעיקרון הקודם
                 </button>
@@ -797,7 +784,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                   type="button"
                   disabled={activeTab === 7}
                   onClick={() => setActiveTab((prev) => Math.min(7, prev + 1))}
-                  className="px-3 py-1.5 text-xs text-indigo-600 border border-indigo-100 hover:bg-indigo-50 rounded disabled:opacity-45"
+                  className="px-3 py-1.5 text-xs text-primary-600 border border-primary-100 hover:bg-primary-50 rounded disabled:opacity-45"
                 >
                   לעיקרון הבא <i className="fa-solid fa-arrow-left ml-1"></i>
                 </button>
@@ -811,28 +798,32 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
 
       </div>
 
-      {/* Operative Strategy Canvas block (חלק ג') */}
-      <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden text-right">
+      </>)}
+
+      {/* Operative Strategy Canvas block (חלק ג') — Plan + Export steps */}
+      {step !== 'assess' && (
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden text-right">
         
         {/* Banner */}
-        <div className="bg-slate-900 text-white p-6 md:p-8 border-b border-indigo-950 space-y-3">
-          <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+        <div className="bg-primary-50 border-b border-slate-200 p-6 md:p-8 space-y-3">
+          <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
             חוד החנית האופרטיבית להנהלות
           </span>
-          <h2 className="text-xl md:text-3xl font-black">קנבס גזירה אופרטיבית ותוכנית העבודה השנתית</h2>
-          <p className="text-xs md:text-sm text-slate-300 leading-normal max-w-4xl">
+          <h2 className="text-xl md:text-3xl font-bold text-slate-900">קנבס גזירה אופרטיבית ותוכנית העבודה השנתית</h2>
+          <p className="text-xs md:text-sm text-slate-600 leading-normal max-w-4xl">
             בהתאם לתוצאות במפת העכביש, סמנו את עוגני העוצמה הבית-ספריים שימנפו את העבודה, את שני יעדי פריצת הדרך הקריטיים שיקבלו תשומת לב מוגברת, ואת הוויתור המשמעותי שיאפשר זאת.
           </p>
         </div>
 
         <div className="p-6 md:p-8 space-y-8" id="action-plan-form">
 
+          {step === 'plan' && (<>
           {/* AI Advisor Panel */}
-          <div className="bg-slate-50 border-2 border-indigo-100 p-6 rounded-2xl bg-gradient-to-br from-indigo-50/40 via-white to-purple-50/30 space-y-6 text-right">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-indigo-100/60 pb-5">
+          <div className="bg-slate-50 border border-primary-100 p-6 rounded-2xl space-y-6 text-right">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-primary-100/60 pb-5">
               <div className="space-y-1">
-                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                  <i className="fa-solid fa-sparkles text-indigo-650 animate-pulse"></i>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <i className="fa-solid fa-sparkles text-primary-600 animate-pulse"></i>
                   <span>מערכת ייעוץ אסטרטגית מבוססת בינה מלאכותית (AI)</span>
                 </h3>
                 <p className="text-xs text-slate-500">
@@ -843,7 +834,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 {aiState === 'idle' && (
                   <button
                     onClick={handleAiInitiate}
-                    className="px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl transition shadow-md hover:shadow-lg flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 active:bg-primary-800 rounded-xl transition shadow-md hover:shadow-lg flex items-center gap-1.5 cursor-pointer"
                   >
                     <i className="fa-solid fa-wand-magic-sparkles"></i>
                     שאל את ה-AI והתחל אבחון
@@ -877,10 +868,10 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
             {/* Step 1: Initiating (Loading questions) */}
             {aiState === 'initiating' && (
               <div className="py-8 flex flex-col items-center justify-center space-y-4 text-center">
-                <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
                 <div className="space-y-1">
                   <p className="text-xs font-bold text-slate-700 animate-pulse">מנתח את ממצאי האבחון הבית-ספרי שלכם...</p>
-                  <p className="text-[10px] text-slate-400">הבינה המלאכותית מנסחת כעת 3 שאלות הבהרה ממוקדות שיעזרו לדייק את תוכנית העבודה.</p>
+                  <p className="text-xs text-slate-400">הבינה המלאכותית מנסחת כעת 3 שאלות הבהרה ממוקדות שיעזרו לדייק את תוכנית העבודה.</p>
                 </div>
               </div>
             )}
@@ -888,18 +879,18 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
             {/* Step 2: Answering clarifying questions */}
             {aiState === 'questions' && (
               <div className="space-y-5 animate-fadeIn">
-                <div className="p-4 bg-indigo-50/50 border border-indigo-100/50 rounded-xl text-slate-800 text-xs leading-relaxed">
-                  <p className="font-bold text-indigo-950 mb-1">ניתוח ראשוני של מערכת ה-AI:</p>
+                <div className="p-4 bg-primary-50/50 border border-primary-100/50 rounded-xl text-slate-800 text-xs leading-relaxed">
+                  <p className="font-bold text-primary-950 mb-1">ניתוח ראשוני של מערכת ה-AI:</p>
                   <p className="text-slate-600">{aiIntro}</p>
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="font-bold text-xs text-slate-755 border-r-2 border-amber-500 pr-2">אנא השיבו על שאלות המיקוד הבאות על מנת שהתוכנית תהיה מותאמת בדיוק לכם:</h4>
+                  <h4 className="font-bold text-xs text-slate-700 border-r-2 border-amber-500 pr-2">אנא השיבו על שאלות המיקוד הבאות על מנת שהתוכנית תהיה מותאמת בדיוק לכם:</h4>
                   
                   {aiQuestions.map((question, idx) => (
-                    <div key={idx} className="space-y-2 p-4 bg-white border border-slate-100 rounded-xl">
+                    <div key={idx} className="space-y-2 p-4 bg-white border border-slate-200 rounded-xl">
                       <label className="block text-xs font-bold text-slate-800 leading-normal">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/10 text-amber-600 text-[10px] font-black ml-1.5">{idx + 1}</span>
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/10 text-amber-600 text-xs font-bold ml-1.5">{idx + 1}</span>
                         {question}
                       </label>
                       <textarea
@@ -911,7 +902,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                         }}
                         placeholder="הקלד כאן תשובה או התייחסות חופשית מהשטח..."
                         rows={2}
-                        className="w-full p-3 text-xs bg-slate-50 focus:bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-right"
+                        className="w-full p-3 text-xs bg-slate-50 focus:bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition text-right"
                       />
                     </div>
                   ))}
@@ -920,14 +911,14 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 <div className="flex items-center gap-3 pt-2">
                   <button
                     onClick={handleAiGenerate}
-                    className="px-6 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-indigo-650 to-purple-650 hover:from-indigo-700 hover:to-purple-700 rounded-xl transition shadow flex items-center gap-1.5 cursor-pointer"
+                    className="px-6 py-2.5 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
                   >
                     <i className="fa-solid fa-circle-check"></i>
                     ייצר תוכנית עבודה אסטרטגית מלאה
                   </button>
                   <button
                     onClick={handleAiGenerate}
-                    className="px-5 py-2.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition cursor-pointer"
+                    className="px-5 py-2.5 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-xl transition cursor-pointer"
                   >
                     דלג על השאלות וייצר כעת
                   </button>
@@ -939,12 +930,12 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
             {aiState === 'generating' && (
               <div className="py-10 flex flex-col items-center justify-center space-y-4 text-center">
                 <div className="relative">
-                  <div className="w-12 h-12 border-4 border-purple-250 border-t-purple-650 rounded-full animate-spin"></div>
+                  <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
                   <i className="fa-solid fa-sparkles text-amber-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-ping"></i>
                 </div>
                 <div className="space-y-1.5">
                   <p className="text-xs font-bold text-slate-800 animate-pulse">מחולל את תוכנית העבודה האסטרטגית שלכם...</p>
-                  <div className="flex flex-col gap-1 text-[10px] text-slate-400">
+                  <div className="flex flex-col gap-1 text-xs text-slate-400">
                     <p>• מגדיר חזון אופרטיבי לשנה הראשונה</p>
                     <p>• מעצב סדירויות ארגוניות ושינוי מערכת השעות</p>
                     <p>• בונה אבני דרך מתוזמנות לפריצות הדרך</p>
@@ -956,19 +947,19 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
             {/* Step 4: Display Finished Plan */}
             {aiState === 'completed' && aiResult && (
               <div className="space-y-6 animate-fadeIn">
-                <div className="p-4 bg-emerald-50/50 border border-emerald-110 rounded-xl flex items-center justify-between text-right">
+                <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-center justify-between text-right">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
                       <i className="fa-solid fa-circle-check text-base"></i>
                     </div>
                     <div>
                       <h4 className="text-xs font-bold text-emerald-950">תוכנית העבודה האסטרטגית שלכם מוכנה!</h4>
-                      <p className="text-[10px] text-emerald-700">התוכנית כוללת פירוט עבור עוגן העוצמה, שתי פריצות הדרך והוויתור הארגוני.</p>
+                      <p className="text-xs text-emerald-700">התוכנית כוללת פירוט עבור עוגן העוצמה, שתי פריצות הדרך והוויתור הארגוני.</p>
                     </div>
                   </div>
                   <button
                     onClick={handleApplyAiRecommendations}
-                    className="px-4 py-2 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg transition shadow flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg transition shadow flex items-center gap-1.5 cursor-pointer"
                   >
                     <i className="fa-solid fa-file-import"></i>
                     החל את ההמלצות על קנבס העבודה
@@ -976,18 +967,18 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 </div>
 
                 {/* Quick Tips */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-indigo-100/40 pb-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-primary-100/40 pb-5">
                   {aiResult.quickTips?.map((tip, idx) => (
-                    <div key={idx} className="p-3 bg-indigo-50/20 border border-indigo-100/10 rounded-xl space-y-1">
-                      <span className="text-[9px] font-black text-indigo-700 uppercase tracking-wider">טיפ יישום {idx + 1}</span>
-                      <p className="text-xs text-slate-750 leading-normal font-medium">{tip}</p>
+                    <div key={idx} className="p-3 bg-primary-50/20 border border-primary-100/10 rounded-xl space-y-1">
+                      <span className="text-xs font-bold text-primary-700 uppercase tracking-wider">טיפ יישום {idx + 1}</span>
+                      <p className="text-xs text-slate-700 leading-normal font-medium">{tip}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* The Plan content */}
-                <div className="p-6 md:p-8 bg-slate-900 text-slate-100 rounded-2xl shadow-inner border border-slate-850 max-h-[500px] overflow-y-auto font-sans leading-relaxed text-right space-y-6">
-                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs pb-3 border-b border-slate-800">
+                <div className="p-6 md:p-8 bg-slate-50 text-slate-700 rounded-2xl border border-slate-200 max-h-[500px] overflow-y-auto font-sans leading-relaxed text-right space-y-6">
+                  <div className="flex items-center gap-2 text-primary-700 font-bold text-xs pb-3 border-b border-slate-200">
                     <i className="fa-solid fa-file-lines"></i>
                     <span>תוצר אופרטיבי - בינה מלאכותית (Generative AI)</span>
                   </div>
@@ -997,8 +988,8 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 </div>
 
                 {aiAppliedSuccessfully && (
-                  <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 flex items-center gap-2 animate-bounce">
-                    <i className="fa-solid fa-sparkles text-indigo-655"></i>
+                  <div className="p-4 bg-primary-50 border border-primary-100 rounded-xl text-xs text-primary-900 flex items-center gap-2 animate-bounce">
+                    <i className="fa-solid fa-sparkles text-primary-600"></i>
                     <span>ההמלצות הועתקו והוזנו בהצלחה מעוררת השראה ישירות לתוך קנבס העבודה למטה!</span>
                   </div>
                 )}
@@ -1007,7 +998,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
           </div>
 
           {/* Metadata info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="space-y-1">
               <label className="block text-xs font-bold text-slate-700">שם בית הספר לקובץ ההדפסה:</label>
               <input
@@ -1015,7 +1006,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 value={actionPlan.schoolName}
                 onChange={(e) => onUpdateActionPlan({ schoolName: e.target.value })}
                 placeholder="הקלד כאן את שם בית הספר..."
-                className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             <div className="space-y-1">
@@ -1025,7 +1016,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 value={actionPlan.schoolYear}
                 onChange={(e) => onUpdateActionPlan({ schoolYear: e.target.value })}
                 placeholder="למשל: תשפ&quot;ז (2026-2027)"
-                className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
           </div>
@@ -1033,14 +1024,14 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Box 1: Strengths Piller */}
-            <div className="p-5 rounded-2xl border border-indigo-100 bg-indigo-50/20 space-y-4">
+            <div className="p-5 rounded-2xl border border-primary-100 bg-primary-50/20 space-y-4">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-indigo-700 uppercase">מינוף הקיים</span>
+                <span className="text-xs font-bold text-primary-700 uppercase">מינוף הקיים</span>
                 <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                  <i className="fa-solid fa-crown text-indigo-650"></i>
+                  <i className="fa-solid fa-crown text-primary-600"></i>
                   <span>עוגן העוצמה הבית-ספרי</span>
                 </h4>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-xs text-slate-500 leading-relaxed">
                   העיקרון שיקבל את הציון הגבוה ביותר במפה או אחד שיש לגביו תשתית פועלת רחבה שנמשיך לשכלל.
                 </p>
               </div>
@@ -1050,7 +1041,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 <select
                   value={actionPlan.strengths[0] || ""}
                   onChange={(e) => onUpdateActionPlan({ strengths: e.target.value ? [parseInt(e.target.value)] : [] })}
-                  className="w-full p-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  className="w-full p-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
                 >
                   <option value="">-- בחר מלשימת העקרונות --</option>
                   {PRINCIPLES_DATA.map((p) => (
@@ -1065,7 +1056,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                   onChange={(e) => onUpdateActionPlan({ strengthReason: e.target.value })}
                   placeholder="רשמו כאן נימוק קונקרטי והוכחה מהרדאר לגבי עוגן זה ואיך נפעל להרחיב אותו עוד..."
                   rows={4}
-                  className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-light"
+                  className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-light"
                 />
               </div>
             </div>
@@ -1073,12 +1064,12 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
             {/* Box 2: Breakthrough Targets (Needs two breakthroughs) */}
             <div className="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/20 space-y-4 lg:col-span-2">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase">הובלת שינוי עמוק</span>
+                <span className="text-xs font-bold text-emerald-700 uppercase">הובלת שינוי עמוק</span>
                 <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                  <i className="fa-solid fa-rocket text-emerald-650"></i>
+                  <i className="fa-solid fa-rocket text-emerald-600"></i>
                   <span>שני יעדי פריצת הדרך לשנה הקרובה</span>
                 </h4>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-xs text-slate-500 leading-relaxed">
                   שני העקרונות שנבחרו מתוך האבחון הנמוך אך קריטיים ובעלי פוטנציאל ההשתפרות הגדול ביותר. המנהל מגדיר את שני היעדים לקראת ספטמבר.
                 </p>
               </div>
@@ -1087,7 +1078,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 
                 {/* Breakthrough 1 */}
                 <div className="bg-white p-4 rounded-xl border border-emerald-100 space-y-3">
-                  <label className="block text-xs font-black text-slate-800">יעד פריצת דרך ראשון:</label>
+                  <label className="block text-xs font-bold text-slate-800">יעד פריצת דרך ראשון:</label>
                   <select
                     value={actionPlan.breakthroughs[0] || ""}
                     onChange={(e) => {
@@ -1116,7 +1107,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
 
                 {/* Breakthrough 2 */}
                 <div className="bg-white p-4 rounded-xl border border-emerald-100 space-y-3">
-                  <label className="block text-xs font-black text-slate-800">יעד פריצת דרך שני:</label>
+                  <label className="block text-xs font-bold text-slate-800">יעד פריצת דרך שני:</label>
                   <select
                     value={actionPlan.breakthroughs[1] || ""}
                     onChange={(e) => {
@@ -1148,38 +1139,35 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
 
           </div>
 
-          {/* Interactive Workshop Card CTA */}
-          <div 
-            onClick={() => setShowWorkshopDetail(true)}
-            className="p-6 rounded-2xl border border-dashed border-indigo-200 bg-gradient-to-r from-indigo-50/40 via-white to-slate-50/50 space-y-4 hover:border-indigo-400 hover:shadow-lg transition-all cursor-pointer group text-right"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
-                <span className="inline-block px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">
-                  סדנת מורים והנהלה מובנית
-                </span>
-                <h4 className="font-black text-slate-900 text-base flex items-center gap-2">
-                  <i className="fa-solid fa-people-group text-indigo-600 animate-pulse"></i>
-                  <span>מהלך הסדנה המלא עם צוות ההנהלה וצוות המורים</span>
-                </h4>
-                <p className="text-xs text-slate-500 leading-relaxed max-w-2xl font-light">
-                  על מנת להגיע לדירוג מוסכם ולגזור את תכנית העבודה בצורה האופטימלית, מומלץ לקיים סדנה מוסדית בת 90 דקות. לחצו כאן כדי להיכנס למחוון רמות הבשלות המלא, שלבי ההפעלה וניהול הדיון!
-                </p>
-              </div>
-              
-              <div className="w-9 h-9 rounded-full bg-indigo-50 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center text-indigo-600 transition-all shrink-0 shadow-sm">
-                <i className="fa-solid fa-chevron-left text-xs"></i>
-              </div>
+          </>)}
+
+          {step === 'export' && (<>
+          {/* Export step — confirm details for the printed report */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">שם בית הספר לקובץ ההדפסה:</label>
+              <input
+                type="text"
+                value={actionPlan.schoolName}
+                onChange={(e) => onUpdateActionPlan({ schoolName: e.target.value })}
+                placeholder="הקלד כאן את שם בית הספר..."
+                className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
             </div>
-            
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 group-hover:underline">
-              <span>לחצו לצפייה במחוון ובמהלך הסדנה</span>
-              <i className="fa-solid fa-arrow-left-long"></i>
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">שנת לימודים:</label>
+              <input
+                type="text"
+                value={actionPlan.schoolYear}
+                onChange={(e) => onUpdateActionPlan({ schoolYear: e.target.value })}
+                placeholder="למשל: תשפ&quot;ז (2026-2027)"
+                className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
             </div>
           </div>
 
           {/* Large prominent feedback block with PDF print CTA */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between flex-col md:flex-row gap-4">
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-between flex-col md:flex-row gap-4">
             <div className="text-right space-y-1">
               <h5 className="font-bold text-sm text-slate-900">מוכנים להדגשת היעדים?</h5>
               <p className="text-xs text-slate-500">לחצו על ייצוא הדוח כדי לקבל דוח משולב, המכיל את מפת העכביש לדיון הנהלה ומועצות פדגוגיות.</p>
@@ -1187,21 +1175,23 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
             
             <button
               onClick={handlePrint}
-              className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 text-xs flex items-center gap-2 cursor-pointer w-full md:w-auto justify-center"
+              className="px-6 py-3.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-lg shadow-primary-600/10 hover:shadow-primary-600/20 text-xs flex items-center gap-2 cursor-pointer w-full md:w-auto justify-center"
             >
               <i className="fa-solid fa-file-pdf"></i>
               <span>הורדה והדפסה</span>
             </button>
           </div>
+          </>)}
 
         </div>
 
       </section>
+      )}
 
       {/* Embedded hidden printable area specific for standard paper output rendering */}
       <div className="hidden print:block print:bg-white text-slate-900 p-8 space-y-6 bg-white" id="executive-printed-canvas" style={{ direction: 'rtl' }}>
         <div className="text-center space-y-2 border-b-2 border-slate-900 pb-4">
-          <h1 className="text-2xl font-black">מדריך שבעת העקרונות של מנהל החינוך</h1>
+          <h1 className="text-2xl font-bold">מדריך שבעת העקרונות של מנהל החינוך</h1>
           <h2 className="text-xl font-bold">תוכנית עבודה אסטרטגית שנתית ומפת בשלות</h2>
           <div className="flex justify-center gap-8 text-xs font-mono font-medium text-slate-600 pt-2">
             <span><strong>בית ספר:</strong> {actionPlan.schoolName || '___________'}</span>
@@ -1211,7 +1201,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
         </div>
 
         <div className="space-y-4 pt-4">
-          <h3 className="text-lg font-bold border-r-4 border-indigo-600 pr-2">א. סיכום הבשלות ומפת העכביש הבית-ספרית</h3>
+          <h3 className="text-lg font-bold border-r-4 border-primary-600 pr-2">א. סיכום הבשלות ומפת העכביש הבית-ספרית</h3>
           <p className="text-xs text-slate-600 leading-normal">
             תרשים זה מציג את רמות הבשלות של בית הספר ב-7 העקרונות (ממוצע משוקלל על בסיס ציר הלמה, האיך והמה במעגל הזהב).
           </p>
@@ -1243,7 +1233,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
         </div>
 
         <div className="space-y-4 pt-4">
-          <h3 className="text-lg font-bold border-r-4 border-indigo-600 pr-2">ב. גזירה אופרטיבית ויעדי קצה</h3>
+          <h3 className="text-lg font-bold border-r-4 border-primary-600 pr-2">ב. גזירה אופרטיבית ויעדי קצה</h3>
           
           <div className="space-y-3">
             <div className="border border-slate-300 p-4 rounded bg-slate-50/50">
@@ -1300,7 +1290,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
         </div>
 
         <div className="space-y-4 pt-4 break-inside-avoid">
-          <h3 className="text-lg font-bold border-r-4 border-indigo-600 pr-2">ג. מהלך הסדנה המוסדית ופרוטוקול ההפעלה (90 דק׳)</h3>
+          <h3 className="text-lg font-bold border-r-4 border-primary-600 pr-2">ג. מהלך הסדנה המוסדית ופרוטוקול ההפעלה (90 דק׳)</h3>
           <div className="text-xs text-slate-700 leading-relaxed text-justify bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
             <p><strong>שלב א&apos;: עבודה עצמית ורפלקציה (15 דקות):</strong> כל חבר הנהלה מעריך ומסמן באופן עצמאי את רמת הבשלות ורושם הנמקה קצרה כהוכחה מהשטח.</p>
             <p><strong>שלב ב&apos;: הצפת נתונים ודיון בפערים (45 דקות) - לב הסדנה:</strong> מציגים את הדירוגים על גבי הרדאר הריק על הלוח, מנהלים דיון ממוקד סביב פערי תפיסה ומגיעים לדירוג מוסכם.</p>
@@ -1310,15 +1300,15 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
 
         <div className="pt-16 flex justify-around text-xs font-bold pt-12 border-t border-slate-200 mt-12 break-inside-avoid">
           <div className="text-center space-y-8">
-            <div className="w-32 border-b border-slate-450 h-px"></div>
+            <div className="w-32 border-b border-slate-400 h-px"></div>
             <span>חתימת מנהל/ת בית הספר</span>
           </div>
           <div className="text-center space-y-8">
-            <div className="w-32 border-b border-slate-450 h-px"></div>
+            <div className="w-32 border-b border-slate-400 h-px"></div>
             <span>חתימת מפקח/ת משרד החינוך</span>
           </div>
           <div className="text-center space-y-8">
-            <div className="w-32 border-b border-slate-450 h-px"></div>
+            <div className="w-32 border-b border-slate-400 h-px"></div>
             <span>מוביל/ת פדגוגיה עירונית</span>
           </div>
         </div>

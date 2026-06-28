@@ -4,10 +4,24 @@
 @theme {
   --font-sans: "Assistant", "Rubik", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  
+
   --color-brand-dark: #0f172a;
-  --color-brand-blue: #3b82f6;
-  
+  --color-brand-blue: #2563eb;
+
+  /* Primary — trustworthy blue (gov/SaaS feel). Single interface accent. */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+
+  /* Per-principle identity colors — used only as small accents. */
   --color-ai: #a855f7;
   --color-holistic: #3b82f6;
   --color-maker: #f97316;
@@ -17,39 +31,39 @@
   --color-human: #f43f5e;
 }
 
+/* Solid card surface — replaces the old glassmorphism look. */
 .glass-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  background: #ffffff;
+  border: 1px solid #e2e8f0; /* slate-200 */
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.06);
 }
 
 /* Beautiful Markdown Typography & Spacing styles */
 .markdown-body {
   font-family: var(--font-sans);
   line-height: 1.8;
-  color: #f1f5f9; /* text-slate-100 */
+  color: #334155; /* slate-700 — readable on light surfaces */
 }
 
 .markdown-body p {
   margin-top: 1rem;
   margin-bottom: 1rem;
   font-size: 0.925rem;
-  color: #cbd5e1; /* text-slate-350 */
+  color: #475569; /* slate-600 */
 }
 
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
-  color: #fbbf24; /* amber-400 */
+  color: #0f172a; /* slate-900 */
   font-weight: 800;
   margin-top: 2rem;
   margin-bottom: 0.8rem;
   letter-spacing: -0.02em;
 }
 
-.markdown-body h1 { font-size: 1.5rem; border-bottom: 1px solid rgba(148, 163, 184, 0.2); padding-bottom: 0.25rem; }
+.markdown-body h1 { font-size: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.25rem; }
 .markdown-body h2 { font-size: 1.35rem; }
-.markdown-body h3 { font-size: 1.15rem; color: #3b82f6; } /* brand-blue */
-.markdown-body h4 { font-size: 1rem; color: #a855f7; } /* purple-ai */
+.markdown-body h3 { font-size: 1.15rem; color: #1d4ed8; } /* primary-700 */
+.markdown-body h4 { font-size: 1rem; color: #2563eb; } /* primary-600 */
 
 .markdown-body ul, .markdown-body ol {
   margin-top: 1rem;
@@ -67,18 +81,18 @@
 
 .markdown-body li {
   margin-bottom: 0.5rem;
-  color: #e2e8f0;
+  color: #334155; /* slate-700 */
 }
 
 .markdown-body strong {
-  color: #fde047; /* yellow-300 */
+  color: #0f172a; /* slate-900 */
   font-weight: 700;
 }
 
 .markdown-body blockquote {
-  border-right: 4px solid #3b82f6;
+  border-right: 4px solid #2563eb; /* primary-600 */
   padding: 0.5rem 1rem;
-  background: rgba(59, 130, 246, 0.1);
+  background: #eff6ff; /* primary-50 */
   margin: 1.25rem 0;
   border-radius: 4px;
 }
@@ -128,8 +142,8 @@
 }
 
 .card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px -4px rgba(15, 23, 42, 0.08);
 }
 
 /* Custom compact scrollbar for High Density feel */

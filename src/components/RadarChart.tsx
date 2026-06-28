@@ -64,7 +64,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden w-full max-w-[480px] mx-auto">
+    <div className="flex flex-col items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden w-full max-w-[480px] mx-auto">
       <div className="text-center mb-4">
         <h4 className="font-semibold text-lg text-slate-900">מפת העכביש הבית-ספרית</h4>
         <p className="text-xs text-slate-500">תמונת מצב חזותית בזמן אמת של 7 העקרונות</p>
@@ -106,7 +106,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
               <text
                 x={cx}
                 y={cy - (r * scoreLevel) / 4 + 4}
-                className="text-[10px] font-mono fill-slate-400 font-medium select-none"
+                className="text-xs font-mono fill-slate-400 font-medium select-none"
                 textAnchor="middle"
               >
                 {scoreLevel}
@@ -194,7 +194,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
                 x={lx}
                 y={ly + 6}
                 textAnchor="middle"
-                className="text-[10px] font-mono font-bold select-none"
+                className="text-xs font-mono font-bold select-none"
                 fill={p.accentColor}
               >
                 רמה {score.toFixed(1)}
@@ -243,22 +243,22 @@ export const RadarChart: React.FC<RadarChartProps> = ({
       </svg>
 
       {/* Micro Legend & Interactive stats */}
-      <div className="grid grid-cols-4 gap-2 border-t border-slate-100 pt-4 mt-2 w-full text-center">
+      <div className="grid grid-cols-4 gap-2 border-t border-slate-200 pt-4 mt-2 w-full text-center">
         <div className="flex flex-col items-center">
-          <span className="text-[10px] font-bold text-slate-400">רמה 1</span>
-          <span className="text-[10px] text-slate-500 font-medium">ניצוצות</span>
+          <span className="text-xs font-bold text-slate-400">רמה 1</span>
+          <span className="text-xs text-slate-500 font-medium">ניצוצות</span>
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-[10px] font-bold text-slate-400">רמה 2</span>
-          <span className="text-[10px] text-slate-500 font-medium">חדשנות</span>
+          <span className="text-xs font-bold text-slate-400">רמה 2</span>
+          <span className="text-xs text-slate-500 font-medium">חדשנות</span>
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-[10px] font-bold text-slate-400">רמה 3</span>
-          <span className="text-[10px] text-slate-500 font-medium">בשגרה</span>
+          <span className="text-xs font-bold text-slate-400">רמה 3</span>
+          <span className="text-xs text-slate-500 font-medium">בשגרה</span>
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-[10px] font-bold text-indigo-500">רמה 4</span>
-          <span className="text-[10px] text-indigo-600 font-bold">חלוציות</span>
+          <span className="text-xs font-bold text-indigo-500">רמה 4</span>
+          <span className="text-xs text-indigo-600 font-bold">חלוציות</span>
         </div>
       </div>
     </div>

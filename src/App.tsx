@@ -2,15 +2,27 @@ import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { PRINCIPLES_DATA } from './data';
 import { DiagnosticAnswers, ActionPlan, DiagnosticResponse } from './types';
-import { DashboardView } from './components/DashboardView';
-import { PrincipleDetailView } from './components/PrincipleDetailView';
+import { OrientView } from './components/OrientView';
 import { DiagnosticView } from './components/DiagnosticView';
 import { RadarChart } from './components/RadarChart';
+import { Onboarding } from './components/Onboarding';
+import { JourneyRail, JourneyStep } from './components/JourneyRail';
+import { StepFooter } from './components/StepFooter';
+
+// The explicit customer-journey steps. Onboarding is the entry; the rest are the
+// working steps. principle_detail is a sub-view of orient (not a step).
+type Step = 'onboarding' | 'orient' | 'workshop' | 'assess' | 'plan' | 'export';
+
+const JOURNEY_STEPS: JourneyStep[] = [
+  { id: 'onboarding', label: 'כניסה', icon: 'fa-solid fa-right-to-bracket' },
+  { id: 'orient', label: 'היכרות עם העקרונות', icon: 'fa-solid fa-book-open' },
+  { id: 'workshop', label: 'מחוון וסדנה', icon: 'fa-solid fa-list-check' },
+  { id: 'assess', label: 'אבחון בשלות', icon: 'fa-solid fa-chart-pie' },
+  { id: 'plan', label: 'מיקוד ותכנון', icon: 'fa-solid fa-bullseye' },
+  { id: 'export', label: 'הפקה וייצוא', icon: 'fa-solid fa-file-pdf' },
+];
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'principle_detail' | 'diagnostic'>('dashboard');
-  const [selectedPrincipleId, setSelectedPrincipleId] = useState<number>(1);
-
   // Load answers and action plan from localStorage to avoid losing data
   const [answers, setAnswers] = useState<DiagnosticAnswers>(() => {
     try {
@@ -47,6 +59,12 @@ export default function App() {
       };
     }
   });
+
+  // Start on onboarding, but skip it for a returning session that already
+  // identified its school.
+  const [currentStep, setCurrentStep] = useState<Step>(() =>
+    (actionPlan.schoolName || '').trim().length > 0 ? 'orient' : 'onboarding'
+  );
 
   // Keep localStorage sync in effect
   useEffect(() => {
@@ -89,6 +107,12 @@ export default function App() {
 
   // Count how many keys are fully defined
   const diagnosticCompletedCount = Object.keys(answers).length;
+
+  // Navigate to a journey step (scroll to top for a clean step transition).
+  const goToStep = (step: Step) => {
+    setCurrentStep(step);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // React state handlers
   const handleUpdateAnswer = (principleId: number, fields: Partial<DiagnosticResponse>) => {
@@ -135,109 +159,61 @@ export default function App() {
     localStorage.removeItem('school_diagnostic_ai_result_v1');
   };
 
-  const handleSelectPrincipleFromGrid = (id: number) => {
-    setSelectedPrincipleId(id);
-    setCurrentScreen('principle_detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleUpdateScoreFromDetail = (id: number, fields: Partial<DiagnosticResponse>) => {
-    setSelectedPrincipleId(id);
-    if (Object.keys(fields).length > 0) {
-      handleUpdateAnswer(id, fields);
-    }
-  };
-
-  const selectedPrincipleData = PRINCIPLES_DATA.find((p) => p.id === selectedPrincipleId) || PRINCIPLES_DATA[0];
-
   return (
     <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] font-sans flex flex-col justify-between" style={{ direction: 'rtl' }}>
-      
-      {/* Fixed top premium navbar - High Density Deep Slate */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-[#0f172a] text-white border-b border-slate-800 shadow-lg z-40 px-4 md:px-8 flex items-center justify-between print:hidden">
+
+      {/* Fixed top app bar — clean white, monday/SaaS feel */}
+      <header className="fixed top-0 left-0 right-0 h-16 bg-white text-slate-900 border-b border-slate-200 shadow-sm z-40 px-4 md:px-8 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold shadow-md">
-            <i className="fa-solid fa-graduation-cap text-lg text-blue-200"></i>
-          </div>
+          <img
+            src="/logo.png"
+            alt="מינהל החינוך - עיריית חולון, עיר הילדים"
+            className="h-11 w-auto object-contain shrink-0"
+          />
           <div>
-            <h1 className="font-extrabold text-xs md:text-sm text-white leading-tight">מדריך שבעת העקרונות של מנהל החינוך</h1>
-            <p className="text-[10px] text-slate-300 font-medium">ערכת כלים אופרטיבית להנהלות בתי ספר</p>
+            <h1 className="font-bold text-xs md:text-sm text-slate-900 leading-tight">מדריך שבעת העקרונות של מנהל החינוך</h1>
+            <p className="text-xs text-slate-500 font-medium">ערכת כלים אופרטיבית להנהלות בתי ספר</p>
           </div>
         </div>
 
-        {/* Action Link Switcher Tab navigation styling - High Density Theme */}
-        <nav className="flex items-center gap-1 md:gap-3">
-          <button
-            onClick={() => {
-              setCurrentScreen('dashboard');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              currentScreen === 'dashboard'
-                ? 'bg-slate-800 text-blue-400 border border-slate-700'
-                : 'text-slate-300 hover:text-white hover:bg-slate-850'
-            }`}
-          >
-            דף הבית (לוח בקרה)
-          </button>
-
-          <button
-            onClick={() => {
-              setCurrentScreen('diagnostic');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all relative cursor-pointer ${
-              currentScreen === 'diagnostic'
-                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-900/40'
-                : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60'
-            }`}
-          >
-            <span className="flex items-center gap-1">
-              📊 <span>מתחם האבחון</span>
-            </span>
-            {diagnosticCompletedCount > 0 && (
-              <span className="absolute -top-1 -left-1 px-1.5 py-0.5 text-[8px] bg-rose-500 text-white rounded-full font-bold">
-                {diagnosticCompletedCount}
-              </span>
-            )}
-          </button>
-        </nav>
+        {actionPlan.schoolName && (
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+            <i className="fa-solid fa-school text-primary-600 text-xs"></i>
+            <span className="hidden sm:inline">{actionPlan.schoolName}</span>
+            {actionPlan.schoolYear && <span className="text-slate-400 font-mono text-xs">· {actionPlan.schoolYear}</span>}
+          </div>
+        )}
       </header>
 
+      {/* Spacer for the fixed header */}
+      <div className="h-16 print:hidden"></div>
+
+      {/* Persistent journey rail — makes the workflow steps explicit */}
+      <JourneyRail
+        steps={JOURNEY_STEPS}
+        currentStep={currentStep}
+        onSelect={(id) => goToStep(id as Step)}
+        assessProgress={{ done: diagnosticCompletedCount, total: 7 }}
+      />
+
       {/* Main body canvas container */}
-      <main className="flex-grow pt-24 pb-12 max-w-7xl mx-auto w-full px-4 md:px-8 print:pt-0 print:pb-0 print:max-w-full">
+      <main className="flex-grow pt-6 pb-12 max-w-7xl mx-auto w-full px-4 md:px-8 print:pt-0 print:pb-0 print:max-w-full">
         <div className="print:hidden">
-          {currentScreen === 'dashboard' && (
-            <DashboardView
-              scores={scores}
-              diagnosticCompletedCount={diagnosticCompletedCount}
-              onSelectPrinciple={handleSelectPrincipleFromGrid}
-              onNavigateToDiagnostic={() => {
-                setCurrentScreen('diagnostic');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+          {currentStep === 'onboarding' && (
+            <Onboarding
+              actionPlan={actionPlan}
+              onUpdateActionPlan={handleUpdateActionPlan}
+              onContinue={() => goToStep('orient')}
             />
           )}
 
-          {currentScreen === 'principle_detail' && (
-            <PrincipleDetailView
-              principle={selectedPrincipleData}
-              scores={scores}
-              diagnosticResponse={answers[selectedPrincipleId]}
-              onUpdateScore={handleUpdateScoreFromDetail}
-              onNavigateBack={() => {
-                setCurrentScreen('dashboard');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              onNavigateToDiagnostic={() => {
-                setCurrentScreen('diagnostic');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
+          {currentStep === 'orient' && (
+            <OrientView scores={scores} answers={answers} />
           )}
 
-          {currentScreen === 'diagnostic' && (
+          {(currentStep === 'workshop' || currentStep === 'assess' || currentStep === 'plan' || currentStep === 'export') && (
             <DiagnosticView
+              step={currentStep}
               scores={scores}
               answers={answers}
               onUpdateAnswer={handleUpdateAnswer}
@@ -248,15 +224,24 @@ export default function App() {
               onUpdateAiResult={setAiResult}
             />
           )}
+
+          {/* Consistent prev/next at the bottom of every step (not onboarding) */}
+          {currentStep !== 'onboarding' && (
+            <StepFooter
+              steps={JOURNEY_STEPS}
+              currentStep={currentStep}
+              onNavigate={(id) => goToStep(id as Step)}
+            />
+          )}
         </div>
 
         {/* Printable Section - Native Paper Format Rendering Toggle */}
         <div className="hidden print:block bg-white p-4">
-          
+
           {/* PAGE 1: HEADER & RADAR SPIDER MAP */}
           <div className="text-center space-y-3 pb-6 border-b-2 border-slate-900">
-            <h1 className="text-3xl font-black">מדריך שבעת העקרונות של מנהל החינוך</h1>
-            <h2 className="text-xl font-bold text-indigo-950">פרוטוקול אבחון ותוכנית עבודה אסטרטגית שנתית</h2>
+            <h1 className="text-3xl font-bold">מדריך שבעת העקרונות של מנהל החינוך</h1>
+            <h2 className="text-xl font-bold text-primary-950">פרוטוקול אבחון ותוכנית עבודה אסטרטגית שנתית</h2>
             <div className="flex justify-center gap-10 text-sm font-medium text-slate-700 font-mono">
               <span><strong>בית ספר:</strong> {actionPlan.schoolName || '___________'}</span>
               <span><strong>שנת לימודים:</strong> {actionPlan.schoolYear || '_______'}</span>
@@ -271,7 +256,7 @@ export default function App() {
           </div>
 
           <div className="space-y-4 pt-6">
-            <h3 className="text-lg font-bold border-r-4 border-indigo-600 pr-2">א. סיכום בשלות 7 העקרונות הפדגוגיים</h3>
+            <h3 className="text-lg font-bold border-r-4 border-primary-600 pr-2">א. סיכום בשלות 7 העקרונות הפדגוגיים</h3>
             <p className="text-xs text-slate-600 leading-relaxed text-justify">
               מדדי הבשלות מחושבים כממוצע של שלושת צירי מעגל הזהב (הלמה - תרבות, האיך - סדירויות במערכת השעות והמה - תוצרים).
             </p>
@@ -292,7 +277,7 @@ export default function App() {
                   return (
                     <tr key={p.id}>
                       <td className="border border-slate-200 p-2.5 font-mono text-center">{p.id}</td>
-                      <td className="border border-slate-200 p-2.5 font-black">{p.title}</td>
+                      <td className="border border-slate-200 p-2.5 font-bold">{p.title}</td>
                       <td className="border border-slate-200 p-2.5 font-mono font-bold text-center bg-slate-50">{score.toFixed(1)}</td>
                       <td className="border border-slate-200 p-2.5 text-slate-700 italic">{ans?.evidence || 'לא תועדו נתונים/הערות'}</td>
                     </tr>
@@ -306,7 +291,7 @@ export default function App() {
           <div style={{ pageBreakBefore: 'always' }} className="pt-8"></div>
 
           <div className="space-y-6 pt-4">
-            <h3 className="text-lg font-bold border-r-4 border-indigo-600 pr-2">ב. קנבס גזירה אופרטיבית ויעדי קצה בית-ספריים</h3>
+            <h3 className="text-lg font-bold border-r-4 border-primary-600 pr-2">ב. קנבס גזירה אופרטיבית ויעדי קצה בית-ספריים</h3>
             <p className="text-xs text-slate-600 leading-relaxed text-justify">
               להבטחת ההטמעה, בחרה ההנהלה עוגן עוצמה מרכזי אחד ושני יעדי פריצת דרך למיקוד שנתי, תוך ביצוע ויתור פדגוגי מודע.
             </p>
@@ -314,9 +299,9 @@ export default function App() {
             <div className="space-y-5">
               <div className="border border-slate-200 p-4 rounded-xl bg-slate-50/50">
                 <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">● עוגן העוצמה הבית-ספרי (לשימור ושכלול):</h4>
-                <p className="text-sm text-indigo-950 font-black mt-1">
-                  {actionPlan.strengths[0] 
-                    ? `עיקרון ${actionPlan.strengths[0]}: ${PRINCIPLES_DATA.find(p => p.id === actionPlan.strengths[0])?.title}` 
+                <p className="text-sm text-primary-950 font-bold mt-1">
+                  {actionPlan.strengths[0]
+                    ? `עיקרון ${actionPlan.strengths[0]}: ${PRINCIPLES_DATA.find(p => p.id === actionPlan.strengths[0])?.title}`
                     : 'טרם נבחר עוגן'}
                 </p>
                 <div className="text-xs text-slate-700 mt-2 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed text-justify">
@@ -326,9 +311,9 @@ export default function App() {
 
               <div className="border border-slate-200 p-4 rounded-xl bg-slate-50/50">
                 <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">● יעד פריצת דרך ראשון להורדה לשטח:</h4>
-                <p className="text-sm text-indigo-950 font-black mt-1">
-                  {actionPlan.breakthroughs[0] 
-                    ? `עיקרון ${actionPlan.breakthroughs[0]}: ${PRINCIPLES_DATA.find(p => p.id === actionPlan.breakthroughs[0])?.title}` 
+                <p className="text-sm text-primary-950 font-bold mt-1">
+                  {actionPlan.breakthroughs[0]
+                    ? `עיקרון ${actionPlan.breakthroughs[0]}: ${PRINCIPLES_DATA.find(p => p.id === actionPlan.breakthroughs[0])?.title}`
                     : 'טרם נבחר יעד'}
                 </p>
                 <div className="text-xs text-slate-700 mt-2 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed text-justify">
@@ -338,9 +323,9 @@ export default function App() {
 
               <div className="border border-slate-200 p-4 rounded-xl bg-slate-50/50">
                 <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">● יעד פריצת דרך שני להורדה לשטח:</h4>
-                <p className="text-sm text-indigo-950 font-black mt-1">
-                  {actionPlan.breakthroughs[1] 
-                    ? `עיקרון ${actionPlan.breakthroughs[1]}: ${PRINCIPLES_DATA.find(p => p.id === actionPlan.breakthroughs[1])?.title}` 
+                <p className="text-sm text-primary-950 font-bold mt-1">
+                  {actionPlan.breakthroughs[1]
+                    ? `עיקרון ${actionPlan.breakthroughs[1]}: ${PRINCIPLES_DATA.find(p => p.id === actionPlan.breakthroughs[1])?.title}`
                     : 'טרם נבחר יעד'}
                 </p>
                 <div className="text-xs text-slate-700 mt-2 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed text-justify">
@@ -352,7 +337,7 @@ export default function App() {
                 <h4 className="font-bold text-xs text-rose-900 uppercase tracking-wide flex items-center gap-1">
                   <span>● הוויתור הארגוני המנהיגותי (חוק השבתון):</span>
                 </h4>
-                <p className="text-[11px] text-slate-500 italic mt-0.5">"מה אנו מפסיקים לעשות על מנת לפנות קשב לחבר המורים לעסוק בשני יעדי פריצת דרך אלו?"</p>
+                <p className="text-xs text-slate-500 italic mt-0.5">"מה אנו מפסיקים לעשות על מנת לפנות קשב לחבר המורים לעסוק בשני יעדי פריצת דרך אלו?"</p>
                 <div className="text-xs text-rose-950 font-medium mt-2 bg-white p-2.5 rounded-lg border border-rose-100 leading-relaxed text-justify shadow-inner">
                   {actionPlan.organizationalSacrifice || 'לא הוגדר ויתור ארגוני.'}
                 </div>
@@ -365,13 +350,13 @@ export default function App() {
             <>
               <div style={{ pageBreakBefore: 'always' }} className="pt-8"></div>
               <div className="space-y-6 pt-4">
-                <h3 className="text-lg font-bold border-r-4 border-indigo-600 pr-2">ג. דוח אסטרטגי פדגוגי מורחב מבוסס AI</h3>
-                
+                <h3 className="text-lg font-bold border-r-4 border-primary-600 pr-2">ג. דוח אסטרטגי פדגוגי מורחב מבוסס AI</h3>
+
                 {/* 3 implementation quick tips checked list */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4">
                   {aiResult.quickTips?.map((tip: string, idx: number) => (
-                    <div key={idx} className="p-3 bg-indigo-50/40 border border-indigo-150 rounded-xl space-y-1">
-                      <span className="text-[9px] font-black text-indigo-800 uppercase tracking-wider">ראשי יישום {idx + 1}</span>
+                    <div key={idx} className="p-3 bg-primary-50/40 border border-primary-100 rounded-xl space-y-1">
+                      <span className="text-xs font-bold text-primary-800 uppercase tracking-wider">ראשי יישום {idx + 1}</span>
                       <p className="text-xs text-slate-900 leading-normal font-medium">{tip}</p>
                     </div>
                   ))}
@@ -390,7 +375,7 @@ export default function App() {
           <div style={{ pageBreakBefore: 'always' }} className="pt-8"></div>
 
           <div className="space-y-6 pt-4">
-            <h3 className="text-lg font-bold border-r-4 border-indigo-600 pr-2">ד. מהלך הסדנה המוסדית ופרוטוקול ההפעלה להנהלות</h3>
+            <h3 className="text-lg font-bold border-r-4 border-primary-600 pr-2">ד. מהלך הסדנה המוסדית ופרוטוקול ההפעלה להנהלות</h3>
             <div className="text-xs text-slate-700 leading-relaxed text-justify bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3 shadow-inner">
               <p><strong>שלב א&apos;: עבודה עצמית ורפלקציה (15 דקות):</strong> כל חבר הנהלה (מנהל, סגנים, רכז פדגוגי, רכז תקשוב, יועצת) מעריך ומסמן באופן עצמאי את רמת הבשלות ורושם הנמקה קצרה כהוכחה מהשטח.</p>
               <p><strong>שלב ב&apos;: הצפת נתונים ודיון בפערים (45 דקות) - לב הסדנה:</strong> מציגים את הדירוגים על גבי הרדאר הריק על הלוח. מנהלים דיון ממוקד סביב פערי התפיסה ומגיעים לדירוג מוסכם.</p>
@@ -416,24 +401,24 @@ export default function App() {
         </div>
       </main>
 
-      {/* Exquisite educational footer */}
-      <footer className="bg-slate-900 text-slate-400 py-8 border-t border-slate-800 print:hidden mt-12 text-center text-xs space-y-2">
+      {/* Quiet educational footer */}
+      <footer className="bg-slate-50 text-slate-500 py-8 border-t border-slate-200 print:hidden mt-12 text-center text-xs space-y-2">
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-slate-800 text-indigo-400 rounded flex items-center justify-center font-bold">
-              <i className="fa-solid fa-gem text-[10px]"></i>
+            <div className="w-6 h-6 bg-primary-50 text-primary-600 rounded flex items-center justify-center font-bold">
+              <i className="fa-solid fa-gem text-xs"></i>
             </div>
-            <p className="font-medium text-slate-300">מדריך שבעת העקרונות של מנהל החינוך © 2026</p>
+            <p className="font-medium text-slate-600">מדריך שבעת העקרונות של מנהל החינוך © 2026</p>
           </div>
           <div className="flex gap-4">
-            <span className="hover:text-white transition-colors">תמיכה באבחון והנהלות</span>
-            <span className="text-slate-700">|</span>
-            <span className="hover:text-white transition-colors">אקו-סיסטם ארגוני</span>
-            <span className="text-slate-700">|</span>
-            <span className="hover:text-white transition-colors">עקרונות המנהיגות</span>
+            <span className="hover:text-slate-900 transition-colors">תמיכה באבחון והנהלות</span>
+            <span className="text-slate-300">|</span>
+            <span className="hover:text-slate-900 transition-colors">אקו-סיסטם ארגוני</span>
+            <span className="text-slate-300">|</span>
+            <span className="hover:text-slate-900 transition-colors">עקרונות המנהיגות</span>
           </div>
         </div>
-        <p className="text-[10px] text-slate-600 font-mono">מפותח לרווחת הקהילות החינוכיות למימוש תוכניות העבודה השנתיות</p>
+        <p className="text-xs text-slate-400 font-mono">מפותח לרווחת הקהילות החינוכיות למימוש תוכניות העבודה השנתיות</p>
       </footer>
     </div>
   );
