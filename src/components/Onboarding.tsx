@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActionPlan } from '../types';
 import { Button } from './ui/Button';
 
@@ -8,14 +8,52 @@ interface OnboardingProps {
   onContinue: () => void;
 }
 
+/** Holon secondary schools — the login picker list. */
+const SCHOOLS: string[] = [
+  'אורט - למדע וטכנולוגיה',
+  'אילון',
+  'אלון (תיכון ק"ש-אלון)',
+  'ארן',
+  'הייטק היי (פרס ברוח הייטק היי)',
+  'הראל (הראל ק. חינוך בנ"ע)',
+  'הרצוג',
+  'טומשין',
+  'יבנה (תיכון יבנה)',
+  'יונתן (מקיף ע"ש יונתן נתניהו)',
+  'מיטרני',
+  'נבון (נבון יצחק)',
+  'נעמת תיכון טכנולוגי',
+  'עתידים',
+  'קוגל',
+  'קציר',
+  'קרית שרת',
+];
+
+// Phase 2: validate against the DB. For now there is no auth backend, so every
+// attempt fails by design.
+const checkPassword = (_school: string, _password: string): boolean => false;
+
 /**
- * Step 1 — onboarding / "identify your school".
- * Placeholder for now: captures school name + year into the existing actionPlan
- * state. In Phase 2 this is where the real "pick school from list + password"
- * login slots in (after the DB exists).
+ * Step 1 — login / "identify your school".
+ * The principal picks the school from a list and enters a password. Real auth
+ * lands in Phase 2 (passwords stored in the DB); until then any submission
+ * returns "סיסמא לא נכונה".
  */
 export const Onboarding: React.FC<OnboardingProps> = ({ actionPlan, onUpdateActionPlan, onContinue }) => {
-  const canContinue = (actionPlan.schoolName || '').trim().length > 0;
+  const [selectedSchool, setSelectedSchool] = useState<string>(actionPlan.schoolName || '');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const canSubmit = selectedSchool.trim().length > 0 && password.trim().length > 0;
+
+  const handleLogin = () => {
+    if (checkPassword(selectedSchool, password)) {
+      onUpdateActionPlan({ schoolName: selectedSchool });
+      onContinue();
+    } else {
+      setError('סיסמא לא נכונה');
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto" dir="rtl">
@@ -26,46 +64,79 @@ export const Onboarding: React.FC<OnboardingProps> = ({ actionPlan, onUpdateActi
             <i className="fa-solid fa-school text-xs"></i>
             כניסה לערכת הכלים
           </span>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">ברוכים הבאים לקיט שבעת העקרונות</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">
+            הפלנר <span className="text-slate-400 font-medium">(Holon School Educational Planner)</span>
+          </h1>
+          <p className="text-sm text-primary-700 font-semibold leading-relaxed">
+            העוזר החכם שלך לבניית תוכנית העצמה בית ספרית ברוח עקרונות תמונת העתיד והמציאות המשתנה
+          </p>
           <p className="text-sm text-slate-600 leading-relaxed">
-            לפני שמתחילים, נזהה את בית הספר. הפרטים יופיעו בתוכנית העבודה ובדוח להדפסה.
+            בחרו את בית הספר והזינו סיסמה כדי להיכנס. שם בית הספר יופיע בתוכנית העבודה ובדוח להדפסה.
           </p>
         </div>
 
         <div className="p-6 md:p-8 space-y-6">
           <div className="space-y-4">
             <div className="space-y-1.5 text-right">
-              <label className="block text-sm font-semibold text-slate-700">שם בית הספר</label>
-              <input
-                type="text"
-                value={actionPlan.schoolName}
-                onChange={(e) => onUpdateActionPlan({ schoolName: e.target.value })}
-                placeholder="הקלידו את שם בית הספר..."
-                autoFocus
-                className="w-full p-3 text-sm bg-white text-slate-900 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
+              <label className="block text-sm font-semibold text-slate-700">בית הספר</label>
+              <select
+                value={selectedSchool}
+                onChange={(e) => {
+                  setSelectedSchool(e.target.value);
+                  setError(null);
+                }}
+                className={`w-full p-3 text-sm bg-white text-slate-900 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                  selectedSchool ? 'border-slate-300' : 'border-slate-300 text-slate-400'
+                }`}
+              >
+                <option value="" disabled>
+                  בחרו את בית הספר מהרשימה…
+                </option>
+                {SCHOOLS.map((s) => (
+                  <option key={s} value={s} className="text-slate-900">
+                    {s}
+                  </option>
+                ))}
+              </select>
             </div>
+
             <div className="space-y-1.5 text-right">
-              <label className="block text-sm font-semibold text-slate-700">שנת לימודים</label>
+              <label className="block text-sm font-semibold text-slate-700">סיסמה</label>
               <input
-                type="text"
-                value={actionPlan.schoolYear}
-                onChange={(e) => onUpdateActionPlan({ schoolYear: e.target.value })}
-                placeholder='למשל: תשפ"ז (2026-2027)'
-                className="w-full p-3 text-sm bg-white text-slate-900 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canSubmit) handleLogin();
+                }}
+                placeholder="הזינו סיסמה…"
+                className={`w-full p-3 text-sm bg-white text-slate-900 border rounded-xl focus:outline-none focus:ring-2 ${
+                  error
+                    ? 'border-rose-300 focus:ring-rose-500 focus:border-rose-500'
+                    : 'border-slate-300 focus:ring-primary-500 focus:border-primary-500'
+                }`}
               />
+              {error && (
+                <p className="flex items-center gap-1.5 text-xs font-bold text-rose-600 pt-1">
+                  <i className="fa-solid fa-circle-exclamation"></i>
+                  {error}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Placeholder note: real login lands here in Phase 2 */}
+          {/* Placeholder note: real auth (passwords in DB) lands in Phase 2 */}
           <div className="flex items-start gap-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">
             <i className="fa-solid fa-circle-info mt-0.5 text-slate-400"></i>
             <span>
-              בהמשך הפיתוח כאן ייכנס מסך כניסה מאובטח: בחירת בית הספר מתוך רשימה והזנת סיסמה. בשלב זה רושמים את שם בית הספר בלבד.
+              מסך הכניסה בבנייה: בהמשך הסיסמאות יאומתו מול בסיס הנתונים של המערכת. בשלב זה הכניסה אינה פעילה עדיין.
             </span>
           </div>
 
-          <Button onClick={onContinue} disabled={!canContinue} size="lg" className="w-full">
+          <Button onClick={handleLogin} disabled={!canSubmit} size="lg" className="w-full">
             <span>כניסה לערכת הכלים</span>
             <i className="fa-solid fa-arrow-left"></i>
           </Button>

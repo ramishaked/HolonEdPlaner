@@ -5,6 +5,7 @@ import { DiagnosticAnswers, ActionPlan, DiagnosticResponse } from './types';
 import { OrientView } from './components/OrientView';
 import { DiagnosticView } from './components/DiagnosticView';
 import { PlanView } from './components/PlanView';
+import { ExportView } from './components/ExportView';
 import { RadarChart } from './components/RadarChart';
 import { Onboarding } from './components/Onboarding';
 import { JourneyRail, JourneyStep } from './components/JourneyRail';
@@ -309,6 +310,24 @@ export default function App() {
 
       {/* Main body canvas container */}
       <main className="flex-grow pt-6 pb-12 max-w-7xl mx-auto w-full px-4 md:px-8 print:pt-0 print:pb-0 print:max-w-full">
+        {currentStep === 'export' ? (
+          <>
+            <ExportView
+              scores={scores}
+              answers={answers}
+              actionPlan={actionPlan}
+              onUpdateActionPlan={handleUpdateActionPlan}
+              aiResult={aiResult}
+            />
+            <div className="print:hidden">
+              <StepFooter
+                steps={JOURNEY_STEPS}
+                currentStep={currentStep}
+                onNavigate={(id) => goToStep(id as Step)}
+              />
+            </div>
+          </>
+        ) : (
         <div className="print:hidden">
           {currentStep === 'onboarding' && (
             <Onboarding
@@ -338,7 +357,7 @@ export default function App() {
             />
           )}
 
-          {(currentStep === 'assess' || currentStep === 'export') && (
+          {currentStep === 'assess' && (
             <DiagnosticView
               step={currentStep}
               scores={scores}
@@ -365,8 +384,11 @@ export default function App() {
             />
           )}
         </div>
+        )}
 
-        {/* Printable Section - Native Paper Format Rendering Toggle */}
+        {/* Printable Section - Native Paper Format Rendering Toggle (not for the
+            export zone, which prints its own live document preview) */}
+        {currentStep !== 'export' && (
         <div className="hidden print:block bg-white p-4">
 
           {/* PAGE 1: HEADER & RADAR SPIDER MAP */}
@@ -530,6 +552,7 @@ export default function App() {
           </div>
 
         </div>
+        )}
       </main>
 
       {/* Quiet educational footer */}

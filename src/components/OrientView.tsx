@@ -49,9 +49,14 @@ export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selecte
         ) : (
           <section className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
             <div className="space-y-6 text-right">
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight text-slate-900">
-                קיט מנהלים — ערכת כלים אינטראקטיבית לכתיבת תכנית עבודה על שבעת העקרונות
-              </h1>
+              <div className="space-y-2">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight text-slate-900">
+                  הפלנר <span className="text-slate-400 font-medium">(Holon School Educational Planner)</span>
+                </h1>
+                <p className="text-base md:text-lg text-primary-700 font-semibold leading-relaxed">
+                  העוזר החכם שלך לבניית תוכנית העצמה בית ספרית ברוח עקרונות תמונת העתיד והמציאות המשתנה
+                </p>
+              </div>
 
               <div className="bg-slate-50 border border-slate-200 p-6 md:p-8 rounded-2xl space-y-6 text-slate-600 text-sm leading-relaxed">
                 <div className="space-y-4 text-sm">
