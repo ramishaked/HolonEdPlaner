@@ -50,6 +50,24 @@ export interface DiagnosticAnswers {
   [principleId: number]: DiagnosticResponse;
 }
 
+// --- מתחם התכנון (planning zone): per-principle action-plan builder ---
+export interface PlanActivity {
+  id: string;
+  title: string;
+  desc: string;
+  metrics: string;
+  target: 'all' | 'layers' | 'teachers';
+  owner: string;
+  priority: 'high' | 'medium' | 'low';
+  type: string; // category label (e.g. בית רותר / סדנת AI / האקתון / אחר / סוכן AI)
+  isExpanded?: boolean; // workspace accordion open/closed state
+}
+
+export interface PrinciplePlan {
+  activities: PlanActivity[];
+  victoryVision: string;
+}
+
 export interface ActionPlan {
   strengths: number[]; // principle IDs
   breakthroughs: number[]; // principle IDs

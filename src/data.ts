@@ -48,7 +48,7 @@ export const PRINCIPLES_DATA: Principle[] = [
   },
   {
     id: 2,
-    title: "שינוי תפקיד המורה למוביל למידה אנושית",
+    title: "תפקיד המורה כמוביל למידה אנושית",
     icon: "fa-solid fa-heart-pulse",
     colorName: "rose",
     accentColor: "#f43f5e",
@@ -91,7 +91,7 @@ export const PRINCIPLES_DATA: Principle[] = [
   },
   {
     id: 3,
-    title: "הטמעת AI כתשתית אינטגרטיבית ועמוקה בכל תהליכי הניהול וההוראה",
+    title: "הטמעת AI כתשתית",
     icon: "fa-solid fa-brain",
     colorName: "purple",
     accentColor: "#a855f7",
@@ -143,7 +143,7 @@ export const PRINCIPLES_DATA: Principle[] = [
   },
   {
     id: 4,
-    title: "הטמעת מודל BYOD - Bring Your Own Device",
+    title: "הטמעת מודל BYOD",
     icon: "fa-solid fa-mobile-screen-button",
     colorName: "cyan",
     accentColor: "#06b6d4",
@@ -279,7 +279,7 @@ export const PRINCIPLES_DATA: Principle[] = [
   },
   {
     id: 7,
-    title: "תרבות מייקרינג וניצול משאבים עירוניים",
+    title: "תרבות מייקרינג",
     icon: "fa-solid fa-hammer",
     colorName: "orange",
     accentColor: "#f97316",

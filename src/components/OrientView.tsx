@@ -1,111 +1,51 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { PRINCIPLES_DATA } from '../data';
 import { DiagnosticAnswers } from '../types';
 import { PrincipleDetailView } from './PrincipleDetailView';
+import { PrincipleMenu, MenuSelection } from './PrincipleMenu';
 
 interface OrientViewProps {
   scores: { [key: number]: number };
   answers: DiagnosticAnswers;
+  /** Controlled selection — lifted to App so other zones can deep-link here. */
+  selected: MenuSelection;
+  onSelect: (id: MenuSelection) => void;
 }
-
-const SHORT_TITLES: Record<number, string> = {
-  1: 'המיומנויות בליבת העשייה',
-  2: 'תפקיד המורה כמוביל למידה אנושית',
-  3: 'הטמעת AI כתשתית',
-  4: 'הטמעת מודל BYOD',
-  5: 'חינוך טכנולוגי הוליסטי וספירלי',
-  6: 'גיוון במרחבי ובסביבות הלמידה',
-  7: 'תרבות מייקרינג',
-};
 
 /**
  * "היכרות עם העקרונות" — master-detail page.
- * Right: a persistent principle list (master). Center: a single stage that shows
- * the "על הקיט" overview by default and swaps to a principle's content on click.
- * No cubes, no separate page, no prev/next arrows.
+ * Master: the shared, uniform PrincipleMenu (collapsible side panel).
+ * Detail: a single stage that shows the "על הקיט" overview by default and swaps
+ * to a principle's content on click. Selection is controlled by App.
  */
-export const OrientView: React.FC<OrientViewProps> = ({ scores, answers }) => {
-  const [selected, setSelected] = useState<number | 'intro'>('intro');
+export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selected, onSelect }) => {
   const selectedPrinciple =
     typeof selected === 'number' ? PRINCIPLES_DATA.find((p) => p.id === selected) || null : null;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" dir="rtl">
-      {/* Master — principle list (right side in RTL) */}
-      <aside className="lg:col-span-4 lg:sticky lg:top-36 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-1.5">
-        <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider px-2 pt-1 pb-1.5">
-          שבעת העקרונות הפדגוגיים
-        </h3>
-
-        {/* Intro / overview entry */}
-        <button
-          onClick={() => setSelected('intro')}
-          className={`w-full flex items-center gap-2.5 p-3 rounded-xl text-right text-xs font-bold transition-all cursor-pointer ${
-            selected === 'intro'
-              ? 'bg-primary-600 text-white shadow-md shadow-primary-600/15'
-              : 'hover:bg-slate-50 text-slate-700'
-          }`}
-        >
-          <i className={`fa-solid fa-circle-info text-base shrink-0 ${selected === 'intro' ? 'text-white' : 'text-primary-500'}`}></i>
-          <span className="flex-1">מבוא · על הקיט</span>
-        </button>
-
-        <div className="h-px bg-slate-100 my-1"></div>
-
-        {PRINCIPLES_DATA.map((p) => {
-          const isActive = selected === p.id;
-          const assessed = !!answers[p.id];
-          const score = scores[p.id] ?? 1;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setSelected(p.id)}
-              className={`group w-full flex flex-col p-3 rounded-xl text-right transition-all duration-200 cursor-pointer ${
-                isActive
-                  ? 'bg-primary-600 text-white shadow-md shadow-primary-600/15'
-                  : 'hover:bg-slate-50 text-slate-700'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <i
-                  className={`${p.icon} text-base shrink-0`}
-                  style={{ color: isActive ? '#ffffff' : p.accentColor }}
-                ></i>
-                <span className="flex-1 text-xs font-bold leading-tight">
-                  {SHORT_TITLES[p.id] ?? p.title}
-                </span>
-                <span
-                  className={`text-xs font-mono px-1.5 py-0.5 rounded-full shrink-0 ${
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : assessed
-                        ? 'bg-slate-100 text-slate-600'
-                        : 'bg-amber-50 text-amber-600'
-                  }`}
-                >
-                  {assessed ? `רמה ${score.toFixed(1)}` : 'טרם דורג'}
-                </span>
-              </div>
-              <div
-                className={`overflow-hidden transition-all duration-200 ${
-                  isActive
-                    ? 'max-h-12 mt-1.5'
-                    : 'max-h-0 group-hover:max-h-12 group-hover:mt-1.5'
-                }`}
-              >
-                <p className={`text-xs leading-snug pr-7 ${isActive ? 'text-primary-200' : 'text-slate-500'}`}>
-                  {p.shortSummary}
-                </p>
-              </div>
-            </button>
-          );
-        })}
-      </aside>
+    <div className="flex gap-6 items-start" dir="rtl">
+      {/* Master — shared principles menu (collapsible side panel) */}
+      <PrincipleMenu selected={selected} onSelect={onSelect} scores={scores} answers={answers} />
 
       {/* Detail — the stage */}
-      <main className="lg:col-span-8 min-w-0">
+      <main className="flex-1 min-w-0">
+        {/* Zone header — future "מהלך הסדנא" entry (placeholder, coming soon) */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:block">מתחם ההכרות</span>
+          <button
+            type="button"
+            disabled
+            title="בקרוב — מהלך הסדנה ייכנס כאן"
+            aria-label="מהלך הסדנא — בקרוב"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 bg-slate-100/70 border border-slate-200 cursor-not-allowed select-none"
+          >
+            <i className="fa-solid fa-person-chalkboard"></i>
+            <span>מהלך הסדנא</span>
+            <span className="text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">בקרוב</span>
+          </button>
+        </div>
         {selectedPrinciple ? (
-          <PrincipleDetailView principle={selectedPrinciple} scores={scores} />
+          <PrincipleDetailView principle={selectedPrinciple} scores={scores} assessed={!!answers[selectedPrinciple.id]} />
         ) : (
           <section className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
             <div className="space-y-6 text-right">

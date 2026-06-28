@@ -5,6 +5,8 @@ import { Collapsible } from './Collapsible';
 interface PrincipleDetailViewProps {
   principle: Principle;
   scores: { [key: number]: number };
+  /** Whether this principle has been mapped yet. Drives the maturity badge. */
+  assessed?: boolean;
 }
 
 // Pure content panel for one principle. Selection/navigation is handled by the
@@ -12,6 +14,7 @@ interface PrincipleDetailViewProps {
 export const PrincipleDetailView: React.FC<PrincipleDetailViewProps> = ({
   principle,
   scores,
+  assessed = false,
 }) => {
   const currentScore = scores[principle.id] || 1;
 
@@ -123,7 +126,11 @@ export const PrincipleDetailView: React.FC<PrincipleDetailViewProps> = ({
 
           <div className="bg-slate-50 px-4 py-2 rounded-xl text-center border border-slate-200 shrink-0">
             <span className="block text-xs text-slate-500 font-bold uppercase">שיוך רמת בשלות נוכחית</span>
-            <span className="text-lg font-mono font-bold text-primary-700">רמה {currentScore.toFixed(1)}</span>
+            {assessed ? (
+              <span className="text-lg font-mono font-bold text-primary-700">רמה {currentScore.toFixed(1)}</span>
+            ) : (
+              <span className="text-sm font-bold text-slate-400">טרם בוצע מיפוי</span>
+            )}
           </div>
         </div>
       </div>

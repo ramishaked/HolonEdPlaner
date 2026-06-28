@@ -4,22 +4,23 @@ import { PRINCIPLES_DATA } from './data';
 import { DiagnosticAnswers, ActionPlan, DiagnosticResponse } from './types';
 import { OrientView } from './components/OrientView';
 import { DiagnosticView } from './components/DiagnosticView';
+import { PlanView } from './components/PlanView';
 import { RadarChart } from './components/RadarChart';
 import { Onboarding } from './components/Onboarding';
 import { JourneyRail, JourneyStep } from './components/JourneyRail';
 import { StepFooter } from './components/StepFooter';
+import { MenuSelection, PRINCIPLE_SHORT_TITLES } from './components/PrincipleMenu';
 
-// The explicit customer-journey steps. Onboarding is the entry; the rest are the
-// working steps. principle_detail is a sub-view of orient (not a step).
-type Step = 'onboarding' | 'orient' | 'workshop' | 'assess' | 'plan' | 'export';
+// The explicit customer-journey "מתחמים" (zones). Onboarding is the entry; the
+// rest are the working zones. principle_detail is a sub-view of orient (not a zone).
+type Step = 'onboarding' | 'orient' | 'assess' | 'plan' | 'export';
 
 const JOURNEY_STEPS: JourneyStep[] = [
   { id: 'onboarding', label: 'כניסה', icon: 'fa-solid fa-right-to-bracket' },
-  { id: 'orient', label: 'היכרות עם העקרונות', icon: 'fa-solid fa-book-open' },
-  { id: 'workshop', label: 'מחוון וסדנה', icon: 'fa-solid fa-list-check' },
-  { id: 'assess', label: 'אבחון בשלות', icon: 'fa-solid fa-chart-pie' },
-  { id: 'plan', label: 'מיקוד ותכנון', icon: 'fa-solid fa-bullseye' },
-  { id: 'export', label: 'הפקה וייצוא', icon: 'fa-solid fa-file-pdf' },
+  { id: 'orient', label: 'מתחם ההכרות', icon: 'fa-solid fa-book-open' },
+  { id: 'assess', label: 'מתחם האבחון העצמי', icon: 'fa-solid fa-chart-pie' },
+  { id: 'plan', label: 'מתחם התכנון', icon: 'fa-solid fa-bullseye' },
+  { id: 'export', label: 'מתחם ההפקה', icon: 'fa-solid fa-file-pdf' },
 ];
 
 export default function App() {
@@ -65,6 +66,14 @@ export default function App() {
   const [currentStep, setCurrentStep] = useState<Step>(() =>
     (actionPlan.schoolName || '').trim().length > 0 ? 'orient' : 'onboarding'
   );
+
+  // Orient zone selection, lifted here so other zones can deep-link to a
+  // principle's explanation page (e.g. assess → "עבור לדף ההסבר").
+  const [orientSelected, setOrientSelected] = useState<MenuSelection>('intro');
+
+  // Settings menu (gear in the top bar) + its reset-diagnostic confirmation.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Keep localStorage sync in effect
   useEffect(() => {
@@ -141,6 +150,13 @@ export default function App() {
     }));
   };
 
+  // Reset only the diagnostic data (assessment answers + AI report). School
+  // identity and the action plan are intentionally preserved.
+  const handleResetDiagnostic = () => {
+    setAnswers({});
+    setAiResult(null);
+  };
+
   const handleClearData = () => {
     setAnswers({});
     setActionPlan({
@@ -171,22 +187,112 @@ export default function App() {
             className="h-11 w-auto object-contain shrink-0"
           />
           <div>
-            <h1 className="font-bold text-xs md:text-sm text-slate-900 leading-tight">מדריך שבעת העקרונות של מנהל החינוך</h1>
-            <p className="text-xs text-slate-500 font-medium">ערכת כלים אופרטיבית להנהלות בתי ספר</p>
+            <h1 className="font-bold text-xs md:text-sm text-slate-900 leading-tight">
+              הפלנר <span className="text-slate-400 font-medium">(Holon School Educational Planner)</span>
+            </h1>
+            <p className="text-xs text-slate-500 font-medium hidden md:block">העוזר החכם שלך לבניית תוכנית העצמה בית ספרית ברוח עקרונות תמונת העתיד והמציאות המשתנה</p>
           </div>
         </div>
 
-        {actionPlan.schoolName && (
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-            <i className="fa-solid fa-school text-primary-600 text-xs"></i>
-            <span className="hidden sm:inline">{actionPlan.schoolName}</span>
-            {actionPlan.schoolYear && <span className="text-slate-400 font-mono text-xs">· {actionPlan.schoolYear}</span>}
+        <div className="flex items-center gap-3">
+          {actionPlan.schoolName && (
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+              <i className="fa-solid fa-school text-primary-600 text-xs"></i>
+              <span className="hidden sm:inline">{actionPlan.schoolName}</span>
+              {actionPlan.schoolYear && <span className="text-slate-400 font-mono text-xs">· {actionPlan.schoolYear}</span>}
+            </div>
+          )}
+
+          {/* Settings menu — currently holds the diagnostic-data reset. */}
+          <div className="relative">
+            <button
+              type="button"
+              title="הגדרות"
+              aria-label="הגדרות"
+              aria-haspopup="menu"
+              aria-expanded={settingsOpen}
+              onClick={() => setSettingsOpen((o) => !o)}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                settingsOpen ? 'text-slate-700 bg-slate-100' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <i className="fa-solid fa-gear text-base"></i>
+            </button>
+
+            {settingsOpen && (
+              <>
+                {/* Click-away layer */}
+                <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)}></div>
+                <div
+                  role="menu"
+                  className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 p-1.5 text-right"
+                >
+                  <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">הגדרות</div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setShowResetConfirm(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  >
+                    <i className="fa-solid fa-rotate-left w-4 text-center"></i>
+                    <span className="text-xs font-bold">איפוס נתוני האבחון</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-        )}
+        </div>
       </header>
 
       {/* Spacer for the fixed header */}
       <div className="h-16 print:hidden"></div>
+
+      {/* Settings → reset-diagnostic confirmation */}
+      {showResetConfirm && (
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 print:hidden"
+          dir="rtl"
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 p-6 space-y-6 text-right"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 text-xl shrink-0">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">איפוס נתוני האבחון</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  פעולה זו תמחק את כל תשובות האבחון ואת דוח ה-AI. פרטי בית הספר ותוכנית הפעולה יישמרו. לא ניתן לשחזר — להמשיך?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 justify-end pt-2">
+              <button
+                onClick={() => {
+                  handleResetDiagnostic();
+                  setShowResetConfirm(false);
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors shadow-lg shadow-rose-600/10 cursor-pointer"
+              >
+                איפוס
+              </button>
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Persistent journey rail — makes the workflow steps explicit */}
       <JourneyRail
@@ -194,6 +300,11 @@ export default function App() {
         currentStep={currentStep}
         onSelect={(id) => goToStep(id as Step)}
         assessProgress={{ done: diagnosticCompletedCount, total: 7 }}
+        coverage={PRINCIPLES_DATA.map((p) => ({
+          id: p.id,
+          title: PRINCIPLE_SHORT_TITLES[p.id] ?? p.title,
+          assessed: !!answers[p.id],
+        }))}
       />
 
       {/* Main body canvas container */}
@@ -208,10 +319,26 @@ export default function App() {
           )}
 
           {currentStep === 'orient' && (
-            <OrientView scores={scores} answers={answers} />
+            <OrientView
+              scores={scores}
+              answers={answers}
+              selected={orientSelected}
+              onSelect={setOrientSelected}
+            />
           )}
 
-          {(currentStep === 'workshop' || currentStep === 'assess' || currentStep === 'plan' || currentStep === 'export') && (
+          {currentStep === 'plan' && (
+            <PlanView
+              scores={scores}
+              answers={answers}
+              onOpenPrincipleInfo={(id) => {
+                setOrientSelected(id);
+                goToStep('orient');
+              }}
+            />
+          )}
+
+          {(currentStep === 'assess' || currentStep === 'export') && (
             <DiagnosticView
               step={currentStep}
               scores={scores}
@@ -222,6 +349,10 @@ export default function App() {
               onClearData={handleClearData}
               aiResult={aiResult}
               onUpdateAiResult={setAiResult}
+              onOpenPrincipleInfo={(id) => {
+                setOrientSelected(id);
+                goToStep('orient');
+              }}
             />
           )}
 
@@ -240,7 +371,7 @@ export default function App() {
 
           {/* PAGE 1: HEADER & RADAR SPIDER MAP */}
           <div className="text-center space-y-3 pb-6 border-b-2 border-slate-900">
-            <h1 className="text-3xl font-bold">מדריך שבעת העקרונות של מנהל החינוך</h1>
+            <h1 className="text-3xl font-bold">הפלנר · Holon School Educational Planner</h1>
             <h2 className="text-xl font-bold text-primary-950">פרוטוקול אבחון ותוכנית עבודה אסטרטגית שנתית</h2>
             <div className="flex justify-center gap-10 text-sm font-medium text-slate-700 font-mono">
               <span><strong>בית ספר:</strong> {actionPlan.schoolName || '___________'}</span>
@@ -408,7 +539,7 @@ export default function App() {
             <div className="w-6 h-6 bg-primary-50 text-primary-600 rounded flex items-center justify-center font-bold">
               <i className="fa-solid fa-gem text-xs"></i>
             </div>
-            <p className="font-medium text-slate-600">מדריך שבעת העקרונות של מנהל החינוך © 2026</p>
+            <p className="font-medium text-slate-600">הפלנר · Holon School Educational Planner © 2026</p>
           </div>
           <div className="flex gap-4">
             <span className="hover:text-slate-900 transition-colors">תמיכה באבחון והנהלות</span>

@@ -64,7 +64,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden w-full max-w-[480px] mx-auto">
+    <div className="flex flex-col items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden w-full mx-auto">
       <div className="text-center mb-4">
         <h4 className="font-semibold text-lg text-slate-900">מפת העכביש הבית-ספרית</h4>
         <p className="text-xs text-slate-500">תמונת מצב חזותית בזמן אמת של 7 העקרונות</p>

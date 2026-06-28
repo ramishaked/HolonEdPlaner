@@ -7,7 +7,7 @@ import { initiate, generate } from "./api/_lib/ai.js";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 

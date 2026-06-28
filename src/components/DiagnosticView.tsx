@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import { PRINCIPLES_DATA, MATURITY_RUBRICS } from '../data';
 import { DiagnosticAnswers, ActionPlan, DiagnosticResponse } from '../types';
 import { RadarChart } from './RadarChart';
+import { PrincipleMenu } from './PrincipleMenu';
 
 interface DiagnosticViewProps {
-  step: 'workshop' | 'assess' | 'plan' | 'export';
+  step: 'assess' | 'plan' | 'export';
   scores: { [key: number]: number };
   answers: DiagnosticAnswers;
   onUpdateAnswer: (principleId: number, fields: Partial<DiagnosticResponse>) => void;
@@ -14,6 +16,8 @@ interface DiagnosticViewProps {
   onClearData: () => void;
   aiResult: any;
   onUpdateAiResult: (result: any) => void;
+  /** Jump to a principle's explanation page in the orient zone. */
+  onOpenPrincipleInfo?: (id: number) => void;
 }
 
 export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
@@ -26,10 +30,15 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
   onClearData,
   aiResult,
   onUpdateAiResult,
+  onOpenPrincipleInfo,
 }) => {
   const [activeTab, setActiveTab] = useState<number>(1); // Active principle ID for questionnaire
   const [draggedOrHoveredId, setDraggedOrHoveredId] = useState<number | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Assess: whether the menu's "מה קורה כאן?" entry is selected (zone explanation).
+  const [showZoneIntro, setShowZoneIntro] = useState(false);
+  // Hover flyout for maturity-level descriptions (portaled, never clipped).
+  const [maturityTip, setMaturityTip] = useState<{ top: number; left: number; text: string } | null>(null);
 
   // AI Strategic wizard state
   const [aiState, setAiState] = useState<'idle' | 'initiating' | 'questions' | 'generating' | 'completed'>(
@@ -180,304 +189,6 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
 
   const completedCount = Object.keys(answers).length;
 
-  const [workshopTab, setWorkshopTab] = useState<'rubrics' | 'protocol'>('rubrics');
-  const [selectedWorkshopPrinciple, setSelectedWorkshopPrinciple] = useState<number>(1);
-
-  const workshopPrinciples = [
-    {
-      id: 1,
-      title: "עיקרון 1: הטמעת AI כתשתית אינטגרטיבית ועמוקה",
-      desc: "הטמעת AI כחלק אינטגרלי מהפדגוגיה והניהול הבית-ספרי.",
-      levels: [
-        { level: 1, name: "רמה 1 – ראשוני (\"ניצוצות\")", desc: "מורים בודדים \"משוגעים לדבר\" משתמשים בכלי AI באופן עצמאי. אין מדיניות או שגרת עבודה ניהולית, וקיימת רמת רתיעה או חרדה מסוימת בקרב חלקים מהצוות." },
-        { level: 2, name: "רמה 2 – מתפתח (\"איים של חדשנות\")", desc: "הנהלת בית הספר עושה שימוש ראשוני בכלי AI לצרכים ניהוליים. בוצעה השתלמות חשיפה מוסדית לצוות המורים, אך השימוש הפדגוגי עדיין אקראי ולא מחייב." },
-        { level: 3, name: "רמה 3 – מוטמע (\"שגרה מוסדית\")", desc: "ה-AI משולב באופן קבוע בשגרות הניהול וכתיבת התוכן של ההנהלה. מוגדר עוגן קבוע במערכת (במליאות או בקל\"מ) להתנסות ב-AI. מורים משתמשים בכלי באופן קבוע לבניית מערכי שיעור מבודלים ומשימות הערכה." },
-        { level: 4, name: "רמה 4 – חלוצי (\"חזון מלא\")", desc: "ה-AI מהווה תשתית עמוקה ואינטגרלית לכלל התהליכים בארגון. הוכח מחקרית וארגונית כי השימוש ב-AI פינה למורים זמן אפקטיבי המוקדש כעת לשיחות אישיות ולמפגש אנושי פרטני עם התלמידים. התלמידים משתמשים ב-AI כסביבת עבודה מבוקרת לחקר עצמאי." }
-      ]
-    },
-    {
-      id: 2,
-      title: "עיקרון 2: חינוך טכנולוגי הוליסטי וספירלי",
-      desc: "בניית רצף מיומנויות דיגיטליות וטכנולוגיות לאורך שכבות הגיל.",
-      levels: [
-        { level: 1, name: "רמה 1 – ראשוני (\"ניצוצות\")", desc: "אוריינות דיגיטלית וטכנולוגית נלמדת באופן מבודד ומנותק אך ורק בשיעורי מחשבים/תקשוב ייעודיים. בשיעורים אחרים הלמידה נשארת מסורתית (מחברת וספר)." },
-        { level: 2, name: "רמה 2 – מתפתח (\"איים של חדשנות\")", desc: "שילוב כלים דיגיטליים מתבצע במספר מקצועות לימוד (בעיקר מדעים), אך ללא סנכרון רב-תחומי או תוכנית עבודה רציפה. אין הגדרה ברורה של רצף מיומנויות בין שכבות הגיל." },
-        { level: 3, name: "רמה 3 – מוטמע (\"שגרה מוסדית\")", desc: "קיימת \"מפת מיומנויות דיגיטליות ספירלית\" בית-ספרית המגדירה יעדים לכל שכבת גיל. רכז התקשוב מקיים ישיבות עבודה חודשיות מובנות עם רכזי המקצועות (שפה, הומניסטיקה, מדעים) לשזירת הטכנולוגיה בתוכניות הלימודים השוטפות." },
-        { level: 4, name: "רמה 4 – חלוצי (\"חזון מלא\")", desc: "הטכנולוגיה היא שפה טבעית וכלי עבודה קבוע בכל תחומי הדעת. הערכת התלמיד מבוססת על \"תיק עבודות דיגיטלי\" (E-Portfolio) רב-תחומי המלווה אותו בין השכבות, ומציג פיתוח חשיבה אלגוריתמית, חקר ויצירה." }
-      ]
-    },
-    {
-      id: 3,
-      title: "עיקרון 3: תרבות מייקרינג וניצול משאבים עירוניים",
-      desc: "למידה התנסותית פיזית ושימוש במרכזי חדשנות עירוניים.",
-      levels: [
-        { level: 1, name: "רמה 1 – ראשוני (\"ניצוצות\")", desc: "תלמידי בית הספר יוצאים לסיור או פעילות העשרה חד-פעמית במרכזי החדשנות העירוניים (\"אתחלא\" / \"בית רותר\"). הפעילות מהנה אך מנותקת לחלוטין מתוכנית הלימודים ומליבת העשייה הבית-ספרית." },
-        { level: 2, name: "רמה 2 – מתפתח (\"איים של חדשנות\")", desc: "מספר מצומצם של כיתות או מורים מובילים פרויקט למידה מבוסס פרויקטים (PBL) בשיתוף המרכזים העירוניים. האתגר הלוגיסטי (הסעות, התאמת מערכת) עדיין מנוהל באופן נקודתי ומקשה על הרחבת הפעילות." },
-        { level: 3, name: "רמה 3 – מוטמע (\"שגרה מוסדית\")", desc: "שיבוץ מובנה וקבוע של \"בלוקים\" ארוכים במערכת השעות עבור שכבות גיל מוגדרות, שבהם הלמידה מועתקת פיזית ובאופן שבועי/דו-שבועי ל\"אתחלא\" או \"בית רותר\". נעשה ויתור מודע על שעות פרונטליות בכיתה לטובת עבודה על פרויקטים מובנים במרכזים." },
-        { level: 4, name: "רמה 4 – חלוצי (\"חזון מלא\")", desc: "בית הספר פועל באקו-סיסטם קהילתי-עירוני מלא. תלמידים מתכננים ומייצרים במרכזים העירוניים תוצרים פיזיים וטכנולוגיים עובדים הנותנים מענה לאתגרים ובעיות אמיתיות בעיר, והתוצרים מוצגים בתערוכות רשמיות וזוכים להערכה חלופית רחבה." }
-      ]
-    },
-    {
-      id: 4,
-      title: "עיקרון 4: הטמעת מודל BYOD (Bring Your Own Device)",
-      desc: "שילוב בטוח ואפקטיבי של המכשירים האישיים של התלמידים בלמידה.",
-      levels: [
-        { level: 1, name: "רמה 1 – ראשוני (\"ניצוצות\")", desc: "המכשירים האישיים של התלמידים נתפסים כאויב או כמטרד מרכזי בכיתה המייצר בעיות משמעת ומוסחות. המדיניות היא הגנתית (\"החרמה\" או \"בתיקים בלבד\") ללא כל שימוש פדגוגי." },
-        { level: 2, name: "רמה 2 – מתפתח (\"איים של חדשנות\")", desc: "מורים בודדים מאפשרים לתלמידים להוציא מכשירים לטובת משימה נקודתית (כמו מענה על חידון Kahoot בסוף שיעור). אין אמנה בית-ספרית מוסדרת, ותשתית ה-WIFI אינה יציבה." },
-        { level: 3, name: "רמה 3 – מוטמע (\"שגרה מוסדית\")", desc: "קיימת \"אמנת BYOD\" בית-ספרית פעילה שנכתבה בשותפות עם ההורים והתלמידים. בכיתות מיושמים \"חוקי רמזור\" מוסכמים לניהול המכשירים. השימוש במכשיר הוא חלק מובנה מהשיעור לצורך עבודה שיתופית, חקר וסקרים בזמן אמת. התשתית הבית-ספרית תומכת וערוכה לכך." },
-        { level: 4, name: "רמה 4 – חלוצי (\"חזון מלא\")", desc: "המכשיר האישי הוא פלטפורמת למידה טבעית ואישית (Anywhere, Anytime Learning). התלמידים מנהלים את עצמם באחריות ובאופן אתי (אזרחות דיגיטלית). אירועי המשמעת סביב המכשירים אפסיים. קיים מנגנון השאלה עירוני מובנה המונע לחלוטין פערים חברתיים או חומריים בכיתה." }
-      ]
-    },
-    {
-      id: 5,
-      title: "עיקרון 5: המיומנויות בליבת העשייה",
-      desc: "מעבר מהספק של חומר לתרגול מעשי והערכה של מיומנויות לחיים.",
-      levels: [
-        { level: 1, name: "רמה 1 – ראשוני (\"ניצוצות\")", desc: "העשייה הבית-ספרית ממוקדת כמעט בלעדית בהספק חומר תיאורטי ובשינון לקראת מבחנים מסורתיים. אין עיסוק מתוכנן במיומנויות." },
-        { level: 2, name: "רמה 2 – מתפתח (\"איים של חדשנות\")", desc: "מורים מצהירים על שילוב מיומנויות (כמו עבודת צוות או חשיבה ביקורתית) בתוכניות הלימודים, אך בפועל אין לכך ביטוי במערכי השיעור ואין כלי הערכה או מחוונים ספציפיים המודדים זאת." },
-        { level: 3, name: "רמה 3 – מוטמע (\"שגרה מוסדית\")", desc: "כל מערך שיעור בית-ספרי כולל הגדרה מפורשת של \"מיומנות יעד\" ותרגול אקטיבי שלה בתוך התוכן הלימודי. נעשה צמצום מודע של חומר תיאורטי לטובת עומק פדגוגי. המיומנויות מוערכות באופן רשמי ומשולבות בתוך תעודת מחצית של בית הספר." },
-        { level: 4, name: "רמה 4 – חלוצי (\"חזון מלא\")", desc: "בית הספר פועל במודל של למידה והערכה מבוססות ביצועים (Performance-based) לחלוטין. התלמידים מסוגלים לבצע רפלקציה עצמית מורכבת על רמת המיומנויות שלהם ומציגים \"מפת התפתחות אישית\" המעידה על מוכנות גבוהה לאתגרי החיים האמיתיים." }
-      ]
-    },
-    {
-      id: 6,
-      title: "עיקרון 6: גיוון במרחבי ובסביבות הלמידה",
-      desc: "הסבת מרחבים מגוונים ומנח שעות מבוזר ללמידה היברידית.",
-      levels: [
-        { level: 1, name: "רמה 1 – ראשוני (\"ניצוצות\")", desc: "הלמידה מתרחשת אך ורק בתוך כיתת האם המסורתית, המאורגנת בשורות קבועות מול הלוח והמורה." },
-        { level: 2, name: "רמה 2 – מתפתח (\"איים של חדשנות\")", desc: "בית הספר מחזיק ב\"מרחב עתידני\" או \"כיתת חדשנות\" מעוצבת, אך ההגעה אליה היא אירוע נדיר או חגיגי. בשאר הזמן לומדים כרגיל. קיימת סביבה דיגיטלית (LMS) אך היא משמשת רק כלוח מודעות סטטי." },
-        { level: 3, name: "רמה 3 – מוטמע (\"שגרה מוסדית\")", desc: "בית הספר מנהל \"מערכת שעות של מרחבים\". מסדרונות, מבואות, חצרות וספריות הוסבו למרחבים גמישים (Flex Spaces) המאפשרים למידה עצמאית או שיתופית במקביל. הסביבה הדיגיטלית הבית-ספרית פעילה, אחידה ומייצרת רצף למידה היברידי מעבר לשעות השהות הפיזיות." },
-        { level: 4, name: "רמה 4 – חלוצי (\"חזון מלא\")", desc: "המרחב הפיזי והדיגיטלי מותאם לחלוטין ובאופן דינמי לשונות של הלומדים ולצרכים הפדגוגיים המשתנים בקליק אחד. המורה מנהל כיתה מבוזרת ונע בטבעיות באקו-סיסטם היברידי עשיר ותומך למידה עצמאית עמוקה." }
-      ]
-    },
-    {
-      id: 7,
-      title: "עיקרון 7: שינוי תפקיד המורה למוביל למידה אנושית",
-      desc: "תפקיד מלווה, פיתוח חוסן, שיחות אישיות ודיאלוג חם.",
-      levels: [
-        { level: 1, name: "רמה 1 – ראשוני (\"ניצוצות\")", desc: "המורה נתפס ומפקד כ\"צינור להעברת מידע\" בלבד (הוראה פרונטלית דומיננטית). השיח המרכזי בין מורים לתלמידים סובב סביב ציונים, הישגים יבשים ובעיות משמעת." },
-        { level: 2, name: "רמה 2 – מתפתח (\"איים של חדשנות\")", desc: "מורים מנסים לשלב שגרות של למידה רגשית-חברתית (SEL) ושיח רגשי, אך הדבר נעשה באופן אקראי (למשל, רק בשיעורי חינוך או ימי שישי) ואין לכך גיבוי או פינוי זמן מובנה במערכת השעות הכללית." },
-        { level: 3, name: "רמה 3 – מוטמע (\"שגרה מוסדית\")", desc: "מוגדרים חלונות זמן קבועים, מוגנים ובלתי-ניתנים לביטול במערכת השעות לטובת שיחות אישיות (מנטורינג) וקבוצות שיח מונחות. זמן ההרצאה הפרונטלית של המורה מוגבל ניהולית לעד 15 פירורים בפתיחת השיעור, והשאר מוקדש לדיאלוג והנחיה. פועלת קהילת למידה מקצועית (קל\"מ) מוסדית לעיבוד התפקיד האנושי." },
-        { level: 4, name: "רמה 4 – חלוצי (\"חזון מלא\")", desc: "המורה מתפקד כמנטור ומנחה מובהק המפתח חוסן, חשיבה ביקורתית ומצפן ערכי אצל הלומד. הקשר הבין-אישי הקרוב והחם הוא המנוע והתשתית לכל הלמידה הבית-ספרית. 100% מהתלמידים מדווחים בשאלונים על קיומו של \"מבוגר משמעותי\" שרואה ומלווה אותם באמת." }
-      ]
-    }
-  ];
-
-  if (step === 'workshop') {
-    const selectedPrin = workshopPrinciples.find(p => p.id === selectedWorkshopPrinciple) || workshopPrinciples[0];
-    return (
-      <div className="space-y-8 animate-fade-in text-right" dir="rtl">
-        {/* Header */}
-        <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full">סדנאות ומחוונים</span>
-            <h2 className="text-xl font-bold text-slate-900">פרוטוקול הסדנה והמחוון האופרטיבי המלא</h2>
-            <p className="text-xs text-slate-500 font-light">
-              עיינו ברמות הבשלות של שבעת העקרונות או קראו את פרוטוקול ההפעלה המודולרי להנהלה.
-            </p>
-          </div>
-        </div>
-
-        {/* Big Switch Tabs */}
-        <div className="flex border-b border-slate-200 gap-6">
-          <button
-            onClick={() => setWorkshopTab('rubrics')}
-            className={`pb-3.5 text-sm font-bold transition-all border-b-2 px-2 cursor-pointer ${
-              workshopTab === 'rubrics' 
-                ? 'text-primary-600 border-primary-600 font-bold' 
-                : 'text-slate-400 border-transparent hover:text-slate-600'
-            }`}
-          >
-            <i className="fa-solid fa-list-check ml-1.5"></i>
-            <span>1. מחוון רמות הבשלות המלא (7 העקרונות)</span>
-          </button>
-          
-          <button
-            onClick={() => setWorkshopTab('protocol')}
-            className={`pb-3.5 text-sm font-bold transition-all border-b-2 px-2 cursor-pointer ${
-              workshopTab === 'protocol' 
-                ? 'text-primary-600 border-primary-600 font-bold' 
-                : 'text-slate-400 border-transparent hover:text-slate-600'
-            }`}
-          >
-            <i className="fa-solid fa-business-time ml-1.5"></i>
-            <span>2. מהלך הסדנה ופרוטוקול הפעלה (90 דקות)</span>
-          </button>
-        </div>
-
-        {/* Content switch */}
-        {workshopTab === 'rubrics' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            {/* Sidebar Principles Menu */}
-            <div className="lg:col-span-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider mb-2 pr-2">שבעת העקרונות הבית-ספריים:</h3>
-              <div className="space-y-1">
-                {workshopPrinciples.map((p) => {
-                  const isCur = p.id === selectedWorkshopPrinciple;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedWorkshopPrinciple(p.id)}
-                      className={`w-full p-3 rounded-xl text-right text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
-                        isCur 
-                          ? 'bg-primary-600 text-white shadow-md shadow-primary-600/15' 
-                          : 'bg-slate-50/50 hover:bg-slate-100 text-slate-700 border border-transparent'
-                      }`}
-                    >
-                      <span className="line-clamp-1">{p.title}</span>
-                      <i className={`fa-solid ${isCur ? 'fa-circle-dot text-primary-200' : 'fa-circle text-slate-300'} text-xs shrink-0 mr-2`}></i>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Principle Content Details */}
-            <div className="lg:col-span-8 space-y-6">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full uppercase">עיקרון ניתוח בשלות</span>
-                <h3 className="text-lg font-bold text-slate-900 mt-2">{selectedPrin.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed font-light">{selectedPrin.desc}</p>
-                <div className="pt-3 border-t border-slate-200/70 mt-4">
-                  <p className="text-xs text-slate-600 leading-relaxed italic">
-                    המחוון להלן מפרק כל עיקרון לארבע רמות בשלות אופרטיביות. רמות אלו בוחנות את שלושת הצירים שלכם: הלשם מה (תרבות ותפיסה), האיך (סדירויות ומשאבים) והמה (תוצרים ומדידה).
-                  </p>
-                </div>
-              </div>
-
-              {/* 4 Levels Grid/Stack */}
-              <div className="space-y-3.5">
-                {selectedPrin.levels.map((lvl) => {
-                  const getLvlStyles = (l: number) => {
-                    switch (l) {
-                      case 1: return { border: 'border-rose-100 border-r-4 border-r-rose-500 bg-rose-50/10', text: 'text-rose-900', p: '🌱 ראשוני ("ניצוצות")', label: 'bg-rose-100 text-rose-700' };
-                      case 2: return { border: 'border-amber-100 border-r-4 border-r-amber-500 bg-amber-50/10', text: 'text-amber-900', p: '🏝️ מתפתח ("איים של חדשנות")', label: 'bg-amber-100 text-amber-700' };
-                      case 3: return { border: 'border-blue-100 border-r-4 border-r-blue-500 bg-blue-50/10', text: 'text-blue-900', p: '🔄 מוטמע ("שגרה מוסדית")', label: 'bg-blue-100 text-blue-700' };
-                      case 4: return { border: 'border-primary-100 border-r-4 border-r-primary-500 bg-primary-50/10', text: 'text-primary-900', p: '🚀 חלוצי ("חזון מלא")', label: 'bg-primary-100 text-primary-700' };
-                      default: return { border: 'border-slate-200 border-r-4 border-r-slate-500 bg-slate-50/10', text: 'text-slate-900', p: 'רמה אופרטיבית', label: 'bg-slate-100 text-slate-700' };
-                    }
-                  };
-                  const styles = getLvlStyles(lvl.level);
-                  return (
-                    <div key={lvl.level} className={`p-5 rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow duration-200 ${styles.border} space-y-3 text-right`}>
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <span className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                          <span className={`w-5 h-5 rounded-full text-xs font-mono font-bold text-white flex items-center justify-center bg-slate-800`}>
-                            {lvl.level}
-                          </span>
-                          <span>{lvl.name}</span>
-                        </span>
-                        
-                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${styles.label}`}>
-                          {styles.p}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 leading-relaxed pr-7 font-light">{lvl.desc}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-          </div>
-        ) : (
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8 max-w-4xl mx-auto">
-            
-            {/* Intro */}
-            <div className="space-y-2 text-right border-b border-slate-200 pb-5">
-              <span className="text-xs bg-primary-50 text-primary-600 font-bold px-2.5 py-1 rounded-full">מנהלת בית הספר והצוותים</span>
-              <h3 className="text-xl font-bold text-slate-900 mt-2">פרוטוקול הפעלה מלא להנהלת בית הספר (סדנה בת 90 דקות)</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-light">
-                סדנה מובנית זו מאפשרת לצוות ההנהלה והמורים להציף הבדלי תפיסה ופערים, לגבש דירוג בשלות מוסכם, ולבנות תכנית אופרטיבית לאחד בספטמבר.
-              </p>
-            </div>
-
-            {/* Stepper Steps */}
-            <div className="relative border-r border-primary-100 pr-8 mr-4 space-y-10 text-right">
-              
-              {/* Step 1 */}
-              <div className="relative space-y-3">
-                {/* Step dot */}
-                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-primary-600 flex items-center justify-center shrink-0 shadow-sm"></div>
-                
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-mono font-bold text-white bg-primary-600 px-2.5 py-0.5 rounded-md shadow-sm">
-                    15 דק׳
-                  </span>
-                  <h4 className="font-bold text-sm text-slate-900">שלב א&apos;: עבודה עצמית ורפלקציה</h4>
-                </div>
-                
-                <p className="text-xs text-slate-600 leading-relaxed font-light max-w-3xl pr-2">
-                  כל חבר הנהלה (מנהל, סגנים, רכזים פדגוגיים, רכז תקשוב, יועצת) מקבל את השאלון ומסמן באופן עצמאי, ללא התייעצות, את רמת הבשלות (1-4) שהוא מייחס לבית הספר עבור כל אחד משבעת העקרונות.
-                </p>
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-600 max-w-2xl mt-1.5 flex gap-2 items-start shadow-sm pr-4">
-                  <i className="fa-solid fa-lightbulb text-amber-500 mt-0.5 shrink-0"></i>
-                  <span><strong>דגש מרכזי:</strong> ליד כל סימון, חבר הצוות כותב בקצרה פתק מעשי המהווה <strong>הנמקה והוכחה מהשטח</strong> (למה סימנתי רמה זו?).</span>
-                </div>
-              </div>
-
-              {/* Step 2 */}
-              <div className="relative space-y-3 text-right">
-                {/* Step dot */}
-                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-primary-600 flex items-center justify-center shrink-0 shadow-sm"></div>
-                
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-mono font-bold text-white bg-primary-600 px-2.5 py-0.5 rounded-md shadow-sm">
-                    45 דק׳
-                  </span>
-                  <h4 className="font-bold text-sm text-slate-900">שלב ב&apos;: הצפת הנתונים ודיון בפערים - <span className="text-primary-600 font-bold">לב הסדנה</span></h4>
-                </div>
-                
-                <p className="text-xs text-slate-600 leading-relaxed font-light max-w-3xl pr-2">
-                  המנהל משרטט על לוח חדר הישיבות את ה&quot;רדאר&quot; הריק (עיגול המחולק ל-7 גזרות). כל חבר צוות תולה פתקית (Post-it) עם הציון שלו בגזרה המתאימה. 
-                  מנהלים דיון ממוקד סביב פערים.
-                </p>
-                <div className="bg-primary-50/30 p-3.5 rounded-xl border border-primary-100 text-xs text-primary-950 max-w-2xl mt-1.5 flex gap-2.5 items-start shadow-sm pr-4">
-                  <i className="fa-solid fa-circle-info text-primary-500 mt-0.5 shrink-0"></i>
-                  <span><strong>דוגמה לדיון בפערים:</strong> אם רכז התקשוב סימן את עיקרון 4 (BYOD) ברמה 3, אך היועצת או סגנית המנהל סימנו ברמה 1 – מבינים היכן הנתק בין התשתית הטכנולוגית לבין השטח האנושי. הדיון נועד להגיע להסכמה וציון משותף ומאוזן.</span>
-                </div>
-              </div>
-
-              {/* Step 3 */}
-              <div className="relative space-y-3 text-right">
-                {/* Step dot */}
-                <div className="absolute -right-[41px] top-1 w-6 h-6 rounded-full bg-white border-4 border-primary-600 flex items-center justify-center shrink-0 shadow-sm"></div>
-                
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-mono font-bold text-white bg-primary-600 px-2.5 py-0.5 rounded-md shadow-sm">
-                    10 דק׳
-                  </span>
-                  <h4 className="font-bold text-sm text-slate-900">שלב ג&apos;: שרטוט הרדאר הבית-ספרי הסופי</h4>
-                </div>
-                
-                <p className="text-xs text-slate-600 leading-relaxed font-light max-w-3xl pr-2">
-                  מחברים את הציון המוסכם של כל 7 העקרונות ומותחים קו ביניהם. מתקבלת צורה ויזואלית ברורה (&quot;הרדאר הבית-ספרי&quot;).
-                </p>
-                <div className="bg-emerald-50/40 p-3.5 rounded-xl border border-emerald-100 text-xs text-emerald-900 max-w-2xl mt-1.5 flex gap-2.5 items-start shadow-sm pr-4">
-                  <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i>
-                  <span><strong>מה הצורה תחשוף?</strong> הצורה תחשוף מיד קריסה פנימה (פערים עמוקים המהווים יעדי פריצת דרך) או פריצה החוצה (עוגני עוצמה בית-ספריים).</span>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Print Note */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-bold text-slate-600 mt-8 shadow-inner">
-              <span>ניתן להדפיס או לייצא פרוטוקול זה כחלק מההדפסה הכללית.</span>
-              <button
-                onClick={() => window.print()}
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs shadow-sm transition-colors cursor-pointer"
-              >
-                ייצוא והדפסה מלאה
-              </button>
-            </div>
-            
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-10">
@@ -519,286 +230,212 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
         </div>
       )}
 
-      {step === 'assess' && (<>
-      {/* Intro section */}
-      <div className="glass-card rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="space-y-2 text-right">
-          <span className="text-xs font-bold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-full">סדנה וקנבס אבחון ומפת עכביש</span>
-          <h2 className="text-2xl font-bold text-[#0f172a] tracking-tight font-sans">תהליך מיפוי הבשלות ומפת העכביש המלאה</h2>
-          <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
-            קיימו סדנת הנהלה בת 90 דקות שבה כל חבר צוות מאפיין לבד את רמות הבשלות, ולאחר מכן דינו בפערים כדי לקבוע את המיון המוסכם. בסיום, השתמשו בתוצרים כדי לגזור מטרות ופעולות מדויקות לאחד בספטמבר.
-          </p>
-        </div>
+      {step === 'assess' && (
+      <div className="flex gap-6 items-start" dir="rtl">
+        {/* Shared principles menu (right) — with a top "מה קורה כאן?" entry */}
+        <PrincipleMenu
+          selected={showZoneIntro ? 'intro' : activeTab}
+          onSelect={(id) => {
+            if (id === 'intro') setShowZoneIntro(true);
+            else { setShowZoneIntro(false); setActiveTab(id); }
+          }}
+          scores={scores}
+          answers={answers}
+          title="עקרונות המיפוי"
+          introLabel="מה קורה כאן?"
+          introIcon="fa-solid fa-circle-question"
+          introSummary="הסבר על מתחם האבחון העצמי ואופן השימוש בו."
+        />
 
-        <div className="flex gap-2 shrink-0">
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            className="px-4 py-2 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <i className="fa-solid fa-trash-can mr-1"></i> איפוס נתוני אבחון
-          </button>
-        </div>
-      </div>
+        <main className="flex-1 min-w-0 space-y-6">
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* Left Interactive / Radar Widget Column (4/12 width) */}
-        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-4">
-          
-          <RadarChart
-            scores={scores}
-            activeId={draggedOrHoveredId || activeTab}
-            onHoverPrinciple={(id) => setDraggedOrHoveredId(id)}
-            onSelectPrinciple={(id) => setActiveTab(id)}
-          />
-
-          {/* Quick Score Summary Panel */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-            <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider text-right">סיכום רמות בשלות נוכחיות:</h4>
-            
-            <div className="space-y-2.5">
-              {PRINCIPLES_DATA.map((p) => {
-                const score = scores[p.id] || 1;
-                const active = p.id === activeTab;
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => setActiveTab(p.id)}
-                    className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${
-                      active ? 'bg-primary-50 border border-primary-100' : 'bg-slate-50/50 hover:bg-slate-50 border border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-400 font-mono w-4">#{p.id}</span>
-                      <span className={`text-xs font-bold ${active ? 'text-primary-900' : 'text-slate-700'}`}>{p.title}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {/* Color indicator tag */}
-                      <span className={`w-2.5 h-2.5 rounded-full ${p.colorName === 'purple' ? 'bg-purple-500' : p.colorName === 'blue' ? 'bg-blue-500' : p.colorName === 'orange' ? 'bg-orange-500' : p.colorName === 'cyan' ? 'bg-cyan-500' : p.colorName === 'emerald' ? 'bg-emerald-500' : p.colorName === 'indigo' ? 'bg-[var(--color-spaces)]' : 'bg-rose-500'}`}></span>
-                      <span className="text-xs font-mono font-bold text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm">
-                        {score.toFixed(1)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+          {showZoneIntro ? (
+            /* Zone explanation (the menu "מה קורה כאן?" entry) */
+            <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-sm space-y-4 text-right animate-fade-in">
+              <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
+                <i className="fa-solid fa-circle-question text-primary-500"></i>
+                מה קורה כאן?
+              </h2>
+              <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
+                במתחם זה ממפים את רמת הבשלות של בית הספר בכל אחד משבעת העקרונות: בוחרים רמת בשלות, מדרגים את שלושת צירי "מעגל הזהב" ומוסיפים הערכה מילולית.
+                התמונה המלאה מצטיירת בזמן אמת במפת העכביש.
+              </p>
+              <button
+                type="button"
+                disabled
+                title="בקרוב — הסבר מורחב על תהליך האבחון"
+                aria-label="ספר לי עוד על האבחון — בקרוב"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 bg-slate-100/70 border border-slate-200 cursor-not-allowed select-none"
+              >
+                <i className="fa-solid fa-book-open"></i>
+                <span>ספר לי עוד על האבחון</span>
+                <span className="text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">בקרוב</span>
+              </button>
             </div>
-          </div>
-
-        </div>
-
-        {/* Right Questionnaire Column (7/12 width) */}
-        <div className="lg:col-span-7 space-y-6">
-          
-          {/* Active indicator index */}
-          <div className="glass-card rounded-2xl overflow-hidden text-right">
-            
-            {/* Header Tabs switcher */}
-            <div className="flex overflow-x-auto border-b border-slate-200/60 scrollbar-none scroll-smooth bg-slate-50/50">
-              {PRINCIPLES_DATA.map((p) => {
-                const isActive = p.id === activeTab;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => setActiveTab(p.id)}
-                    className={`px-4 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all shrink-0 cursor-pointer ${
-                      isActive 
-                        ? 'text-primary-600 border-primary-600 bg-primary-50/40'
-                        : 'text-slate-500 border-transparent hover:text-slate-800'
-                    }`}
-                  >
-                    עיקרון {p.id}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="p-6 space-y-6">
-              
-              {/* Active title and quick rationale snippet */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold uppercase text-primary-600">אבחון ומיפוי שוטף</span>
-                <h3 className="text-lg md:text-xl font-bold text-[#0f172a]">{currentPrinciple.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed font-light">{currentPrinciple.shortSummary}</p>
-              </div>
-
-              {/* Step 1: Maturity Levels Selection Matrix */}
-              <div className="space-y-4">
-                <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-700 text-xs font-bold inline-flex items-center justify-center">א</span>
-                  <span>בחר את רמת הבשלות המאפיינת את בית ספרך כיום:</span>
-                </h4>
-
-                <div className="grid grid-cols-1 gap-2.5">
-                  {activeRubrics.map((rubric) => {
-                    const isSelected = activeAnswer.selectedMaturityLevel === rubric.level;
-                    return (
-                      <div
-                        key={rubric.level}
-                        onClick={() => onUpdateAnswer(activeTab, { selectedMaturityLevel: rubric.level })}
-                        className={`p-3.5 rounded-xl border border-r-4 text-right cursor-pointer transition-all ${
-                          isSelected 
-                            ? 'border-primary-600 bg-primary-50/30 border-r-primary-600 shadow-sm'
-                            : 'border-slate-200/60 bg-white/70 hover:bg-slate-50 border-r-slate-400'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-4 mb-1">
-                          <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
-                            <span className={`w-4 h-4 rounded-full text-xs font-bold text-white flex items-center justify-center ${
-                              rubric.level === 4 ? 'bg-primary-600' : 'bg-slate-400'
-                            }`}>
-                              {rubric.level}
-                            </span>
-                            <span>{rubric.name}</span>
-                          </span>
-
-                          {isSelected && (
-                            <span className="text-xs bg-primary-600 text-white font-bold px-2 py-0.5 rounded-full">
-                              מצב נוכחי מוסכם
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-600 leading-relaxed pr-5">{rubric.description}</p>
-                      </div>
-                    );
-                  })}
+          ) : (
+            <>
+            {/* Current principle header + jump to its explanation page */}
+            <div
+              className="bg-white rounded-2xl p-4 md:p-5 border border-slate-200 shadow-sm border-r-8 flex items-center justify-between gap-4"
+              style={{ borderRightColor: currentPrinciple.accentColor }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span
+                  className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${currentPrinciple.accentColor}1a` }}
+                >
+                  <i className={`${currentPrinciple.icon} text-lg`} style={{ color: currentPrinciple.accentColor }}></i>
+                </span>
+                <div className="min-w-0">
+                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: currentPrinciple.accentColor }}>
+                    עיקרון {currentPrinciple.id}
+                  </span>
+                  <h3 className="text-base md:text-xl font-bold text-slate-900 leading-tight">{currentPrinciple.title}</h3>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => onOpenPrincipleInfo?.(activeTab)}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-100 transition-colors cursor-pointer"
+              >
+                <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                <span className="hidden sm:inline">עבור לדף ההסבר</span>
+                <span className="sm:hidden">הסבר</span>
+              </button>
+            </div>
 
-              {/* Step 2: Rating 3 axes based on Golden Circle */}
-              <div className="space-y-4 pt-4 border-t border-slate-50">
-                <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1">
-                  <span className="w-4 h-4 rounded-full bg-primary-100 text-primary-700 text-xs font-bold inline-flex items-center justify-center">ב</span>
-                  <span>דרג את שלושת צירי &quot;מעגל הזהב&quot; (מ-1 עד 4):</span>
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  
-                  {/* Axis 1: Culture (Why) */}
-                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200 space-y-3">
-                    <div>
-                      <span className="block text-xs font-bold text-primary-700">ציר התרבות (הלמה)</span>
-                      <span className="text-xs text-slate-400">האם יש הבנה והזדהות עם המטרה?</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 justify-center">
-                      {[1, 2, 3, 4].map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => onUpdateAnswer(activeTab, { whyScore: num })}
-                          className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
-                            activeAnswer.whyScore === num 
-                              ? 'bg-primary-600 text-white' 
-                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Axis 2: Routines (How) */}
-                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200 space-y-3">
-                    <div>
-                      <span className="block text-xs font-bold text-primary-700">ציר הסדירויות (האיך)</span>
-                      <span className="text-xs text-slate-400">יש עוגנים מובנים במערכת השעות?</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 justify-center">
-                      {[1, 2, 3, 4].map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => onUpdateAnswer(activeTab, { howScore: num })}
-                          className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
-                            activeAnswer.howScore === num 
-                              ? 'bg-primary-600 text-white' 
-                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Axis 3: Outputs (What) */}
-                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200 space-y-3">
-                    <div>
-                      <span className="block text-xs font-bold text-primary-700">ציר התוצרים (המה)</span>
-                      <span className="text-xs text-slate-400">תוצרים מדידים של מורה ותלמיד?</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 justify-center">
-                      {[1, 2, 3, 4].map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => onUpdateAnswer(activeTab, { whatScore: num })}
-                          className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
-                            activeAnswer.whatScore === num 
-                              ? 'bg-primary-600 text-white' 
-                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Step 3: Evidence documentation */}
-              <div className="space-y-2 pt-4 border-t border-slate-50">
-                <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1">
-                  <span className="w-4 h-4 rounded-full bg-primary-100 text-primary-700 text-xs font-bold inline-flex items-center justify-center">ג</span>
-                  <span>הנמקה, הוכחות וגיבוי מהשטח (&quot;פתקית רפלקטיבית&quot;):</span>
-                </h4>
-                
-                <textarea
-                  value={activeAnswer.evidence}
-                  onChange={(e) => onUpdateAnswer(activeTab, { evidence: e.target.value })}
-                  placeholder="רשמו כאן נתונים, הוכחות לקביעת הציון או דברים קונקרטיים שעלו בדיון עם רכזי המקצוע או היועצת..."
-                  rows={4}
-                  className="w-full p-3 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            {/* Radar (right, always visible) + metrics (left): maturity then golden-circle */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              <div className="w-full lg:w-[60%] lg:sticky lg:top-36 shrink-0">
+                <RadarChart
+                  scores={scores}
+                  activeId={draggedOrHoveredId || activeTab}
+                  onHoverPrinciple={(id) => setDraggedOrHoveredId(id)}
+                  onSelectPrinciple={(id) => setActiveTab(id)}
                 />
               </div>
 
-              {/* Swipe transition buttons */}
-              <div className="flex justify-between items-center pt-2">
-                <button
-                  type="button"
-                  disabled={activeTab === 1}
-                  onClick={() => setActiveTab((prev) => Math.max(1, prev - 1))}
-                  className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-200 rounded disabled:opacity-45"
-                >
-                  <i className="fa-solid fa-arrow-right mr-1"></i> לעיקרון הקודם
-                </button>
+              <div className="flex-1 min-w-0 w-full space-y-5">
 
-                <button
-                  type="button"
-                  disabled={activeTab === 7}
-                  onClick={() => setActiveTab((prev) => Math.min(7, prev + 1))}
-                  className="px-3 py-1.5 text-xs text-primary-600 border border-primary-100 hover:bg-primary-50 rounded disabled:opacity-45"
-                >
-                  לעיקרון הבא <i className="fa-solid fa-arrow-left ml-1"></i>
-                </button>
+                {/* Maturity level — compact, descriptions on hover */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-slate-800">רמת הבשלות הנוכחית של בית הספר</h4>
+                  <div className="space-y-1.5">
+                    {activeRubrics.map((rubric) => {
+                      const isSelected = activeAnswer.selectedMaturityLevel === rubric.level;
+                      const showTip = (el: HTMLElement) => {
+                        const r = el.getBoundingClientRect();
+                        const W = 260, gap = 8;
+                        let left = r.left - gap - W;
+                        if (left < 8) left = r.right + gap;
+                        setMaturityTip({ top: r.top + r.height / 2, left, text: rubric.description });
+                      };
+                      return (
+                        <button
+                          key={rubric.level}
+                          type="button"
+                          onClick={() => onUpdateAnswer(activeTab, { selectedMaturityLevel: rubric.level })}
+                          onMouseEnter={(e) => showTip(e.currentTarget)}
+                          onMouseLeave={() => setMaturityTip(null)}
+                          onFocus={(e) => showTip(e.currentTarget)}
+                          onBlur={() => setMaturityTip(null)}
+                          className={`w-full flex items-center gap-2 p-2.5 rounded-xl border border-r-4 text-right cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-primary-600 bg-primary-50/40 border-r-primary-600 shadow-sm'
+                              : 'border-slate-200/60 bg-white hover:bg-slate-50 border-r-slate-300'
+                          }`}
+                        >
+                          <span className={`w-5 h-5 rounded-full text-[0.65rem] font-bold text-white flex items-center justify-center shrink-0 ${isSelected ? 'bg-primary-600' : 'bg-slate-400'}`}>
+                            {rubric.level}
+                          </span>
+                          <span className="flex-1 text-xs font-bold text-slate-900">{rubric.name}</span>
+                          <i className="fa-solid fa-circle-info text-slate-300 text-xs shrink-0"></i>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Golden-circle 3 axes — directly after the maturity level */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-slate-800">דירוג שלושת צירי "מעגל הזהב" (1–4)</h4>
+                  <div className="space-y-1.5">
+                    {([
+                      { key: 'whyScore', title: 'ציר התרבות (הלמה)', sub: 'הבנה והזדהות עם המטרה' },
+                      { key: 'howScore', title: 'ציר הסדירויות (האיך)', sub: 'עוגנים מובנים במערכת השעות' },
+                      { key: 'whatScore', title: 'ציר התוצרים (המה)', sub: 'תוצרים מדידים של מורה ותלמיד' },
+                    ] as const).map((axis) => {
+                      const val = activeAnswer[axis.key];
+                      return (
+                        <div key={axis.key} className="flex items-center justify-between gap-3 p-2.5 bg-slate-50/60 rounded-xl border border-slate-200">
+                          <div className="min-w-0">
+                            <span className="block text-xs font-bold text-primary-700">{axis.title}</span>
+                            <span className="text-[0.7rem] text-slate-400">{axis.sub}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {[1, 2, 3, 4].map((num) => (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() =>
+                                  onUpdateAnswer(
+                                    activeTab,
+                                    axis.key === 'whyScore'
+                                      ? { whyScore: num }
+                                      : axis.key === 'howScore'
+                                        ? { howScore: num }
+                                        : { whatScore: num }
+                                  )
+                                }
+                                className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
+                                  val === num ? 'bg-primary-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {num}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
-
             </div>
 
-          </div>
+            {/* Free text — the manager's note for this principle */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+              <h4 className="text-sm font-bold text-slate-800">הערכה מילולית והערות המנהל/ת על עיקרון זה</h4>
+              <textarea
+                value={activeAnswer.evidence}
+                onChange={(e) => onUpdateAnswer(activeTab, { evidence: e.target.value })}
+                placeholder="רשמו כאן הערכה כללית, נתונים, הוכחות לקביעת הרמה או דברים שעלו בדיון עם רכזי המקצוע או היועצת..."
+                rows={4}
+                className="w-full p-3 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            </>
+          )}
 
-        </div>
+        </main>
 
+        {/* Maturity description flyout — portaled so it is never clipped */}
+        {maturityTip &&
+          createPortal(
+            <div
+              className="pointer-events-none fixed z-[60] w-[260px] print:hidden"
+              style={{ top: maturityTip.top, left: maturityTip.left, transform: 'translateY(-50%)' }}
+              dir="rtl"
+            >
+              <div className="bg-white border border-slate-200 shadow-lg rounded-xl p-3 text-right">
+                <p className="text-[0.7rem] leading-snug text-slate-600">{maturityTip.text}</p>
+              </div>
+            </div>,
+            document.body
+          )}
       </div>
-
-      </>)}
+      )}
 
       {/* Operative Strategy Canvas block (חלק ג') — Plan + Export steps */}
       {step !== 'assess' && (
