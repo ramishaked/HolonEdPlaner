@@ -110,17 +110,17 @@ export const PrincipleDetailView: React.FC<PrincipleDetailViewProps> = ({
     <div className="space-y-8 animate-fade-in text-[#0f172a]">
       {/* Main Principle Header Card — light surface with a principle-colored accent edge */}
       <div
-        className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 border-r-8"
+        className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-200 border-r-8"
         style={{ borderRightColor: principle.accentColor }}
       >
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-start md:items-center gap-4">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${colors.badge} text-xl font-bold p-3 overflow-hidden`}>
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${colors.badge} text-lg font-bold p-2 overflow-hidden`}>
               <i className={principle.icon}></i>
             </div>
             <div className="space-y-1 text-right">
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: principle.accentColor }}>עמוד השדרה הפדגוגי והארגוני - עיקרון {principle.id}</span>
-              <h2 className="text-xl md:text-3xl font-bold tracking-tight text-slate-900">{principle.title}</h2>
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: principle.accentColor }}>עיקרון {principle.id}</span>
+              <h2 className="text-lg md:text-2xl font-bold tracking-tight text-slate-900 leading-tight">{principle.title}</h2>
             </div>
           </div>
 

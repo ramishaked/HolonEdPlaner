@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { version } from '../package.json';
 import ReactMarkdown from 'react-markdown';
 import { PRINCIPLES_DATA } from './data';
 import { DiagnosticAnswers, ActionPlan, DiagnosticResponse, SchoolProfile, EMPTY_SCHOOL_PROFILE } from './types';
@@ -217,13 +218,11 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          {actionPlan.schoolName && (
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-              <i className="fa-solid fa-school text-primary-600 text-xs"></i>
-              <span className="hidden sm:inline">{actionPlan.schoolName}</span>
-              {actionPlan.schoolYear && <span className="text-slate-400 font-mono text-xs">· {actionPlan.schoolYear}</span>}
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+            <i className="fa-solid fa-school text-primary-600 text-xs"></i>
+            <span className="hidden sm:inline">{actionPlan.schoolName || 'קוגל'}</span>
+            {actionPlan.schoolYear && <span className="text-slate-400 font-mono text-xs">· {actionPlan.schoolYear}</span>}
+          </div>
 
           {/* Settings — opens the full settings screen */}
           <button
@@ -515,23 +514,15 @@ export default function App() {
       </main>
 
       {/* Quiet educational footer */}
-      <footer className="bg-slate-50 text-slate-500 py-8 border-t border-slate-200 print:hidden mt-12 text-center text-xs space-y-2">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary-50 text-primary-600 rounded flex items-center justify-center font-bold">
-              <i className="fa-solid fa-gem text-xs"></i>
-            </div>
-            <p className="font-medium text-slate-600">הפלנר · Holon School Educational Planner © 2026</p>
+      <footer className="bg-slate-50 text-slate-500 py-4 border-t border-slate-200 print:hidden mt-12 text-center text-xs">
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
+          <div className="w-5 h-5 bg-primary-50 text-primary-600 rounded flex items-center justify-center font-bold">
+            <i className="fa-solid fa-gem text-xs"></i>
           </div>
-          <div className="flex gap-4">
-            <span className="hover:text-slate-900 transition-colors">תמיכה באבחון והנהלות</span>
-            <span className="text-slate-300">|</span>
-            <span className="hover:text-slate-900 transition-colors">אקו-סיסטם ארגוני</span>
-            <span className="text-slate-300">|</span>
-            <span className="hover:text-slate-900 transition-colors">עקרונות המנהיגות</span>
-          </div>
+          <p className="font-medium text-slate-600">הפלנר · Holon School Educational Planner © 2026</p>
+          <span className="text-slate-300">·</span>
+          <span className="font-mono text-slate-400">v{version}</span>
         </div>
-        <p className="text-xs text-slate-400 font-mono">מפותח לרווחת הקהילות החינוכיות למימוש תוכניות העבודה השנתיות</p>
       </footer>
     </div>
   );

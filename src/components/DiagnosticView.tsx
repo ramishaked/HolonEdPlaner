@@ -290,7 +290,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                   <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: currentPrinciple.accentColor }}>
                     עיקרון {currentPrinciple.id}
                   </span>
-                  <h3 className="text-base md:text-xl font-bold text-slate-900 leading-tight">{currentPrinciple.title}</h3>
+                  <h3 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight">{currentPrinciple.title}</h3>
                 </div>
               </div>
               <button
@@ -299,7 +299,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-100 transition-colors cursor-pointer"
               >
                 <i className="fa-solid fa-arrow-up-right-from-square"></i>
-                <span className="hidden sm:inline">עבור לדף ההסבר</span>
+                <span className="hidden sm:inline">עוד על העקרון</span>
                 <span className="sm:hidden">הסבר</span>
               </button>
             </div>
@@ -443,9 +443,6 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
         
         {/* Banner */}
         <div className="bg-primary-50 border-b border-slate-200 p-6 md:p-8 space-y-3">
-          <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
-            חוד החנית האופרטיבית להנהלות
-          </span>
           <h2 className="text-xl md:text-3xl font-bold text-slate-900">קנבס גזירה אופרטיבית ותוכנית העבודה השנתית</h2>
           <p className="text-xs md:text-sm text-slate-600 leading-normal max-w-4xl">
             בהתאם לתוצאות במפת העכביש, סמנו את עוגני העוצמה הבית-ספריים שימנפו את העבודה, את שני יעדי פריצת הדרך הקריטיים שיקבלו תשומת לב מוגברת, ואת הוויתור המשמעותי שיאפשר זאת.
@@ -461,7 +458,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <i className="fa-solid fa-sparkles text-primary-600 animate-pulse"></i>
-                  <span>מערכת ייעוץ אסטרטגית מבוססת בינה מלאכותית (AI)</span>
+                  <span>מערכת ייעוץ אסטרטגית מבוססת בינה מלאכותית</span>
                 </h3>
                 <p className="text-xs text-slate-500">
                   ניתוח עצמאי חכם המזהה את עוגן העוצמה שלכם ושני יעדי פריצת הדרך, מייצר שאלות מיקוד ולאחר מכן מציע חזון אופרטיבי, סדירויות ושלבים מעשיים.

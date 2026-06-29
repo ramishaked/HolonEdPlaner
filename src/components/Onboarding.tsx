@@ -10,23 +10,49 @@ interface OnboardingProps {
 
 /** Holon secondary schools — the login picker list. */
 const SCHOOLS: string[] = [
-  'אורט - למדע וטכנולוגיה',
-  'אילון',
-  'אלון (תיכון ק"ש-אלון)',
-  'ארן',
-  'הייטק היי (פרס ברוח הייטק היי)',
-  'הראל (הראל ק. חינוך בנ"ע)',
+  'אמירים',
+  'אשלים',
+  'בן צבי',
+  'גולדטק',
+  'התבור',
+  'ישורון',
+  'ישעיהו',
+  'מגינים',
+  'שמיר',
+  'רביבים',
+  'שמגר',
+  'שער האריות',
+  'משה שרת',
+  'יחד',
+  'ניב',
+  'שרון',
+  'שנקר',
+  'דינור',
+  'דביר',
+  'שזר',
+  'כצנלסון',
+  'עלומים',
+  'ביאליק',
+  'אשכול',
+  'גורדון',
+  'הס',
+  'ניצנים',
+  'בן גוריון',
+  'חט״ב אלון',
+  'חט"ב הייטק היי',
+  'תיכון הייטק היי',
   'הרצוג',
-  'טומשין',
-  'יבנה (תיכון יבנה)',
-  'יונתן (מקיף ע"ש יונתן נתניהו)',
-  'מיטרני',
-  'נבון (נבון יצחק)',
-  'נעמת תיכון טכנולוגי',
+  'לווית חן',
+  'נבון',
   'עתידים',
-  'קוגל',
   'קציר',
-  'קרית שרת',
+  'ק"ש',
+  'יבנה',
+  'חט"ב ארן',
+  'קוגל',
+  'חט"ב קוגל',
+  'אילון',
+  'חט"ב איילון',
 ];
 
 // Phase 2: validate against the DB. For now there is no auth backend, so every
@@ -60,19 +86,9 @@ export const Onboarding: React.FC<OnboardingProps> = ({ actionPlan, onUpdateActi
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {/* Accent strip header */}
         <div className="bg-primary-50 border-b border-slate-200 p-6 md:p-8 space-y-3 text-right">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-100 text-primary-700">
-            <i className="fa-solid fa-school text-xs"></i>
-            כניסה לערכת הכלים
-          </span>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">
-            הפלנר <span className="text-slate-400 font-medium">(Holon School Educational Planner)</span>
+            הפלנר
           </h1>
-          <p className="text-sm text-primary-700 font-semibold leading-relaxed">
-            העוזר החכם שלך לבניית תוכנית העצמה בית ספרית ברוח עקרונות תמונת העתיד והמציאות המשתנה
-          </p>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            בחרו את בית הספר והזינו סיסמה כדי להיכנס. שם בית הספר יופיע בתוכנית העבודה ובדוח להדפסה.
-          </p>
         </div>
 
         <div className="p-6 md:p-8 space-y-6">

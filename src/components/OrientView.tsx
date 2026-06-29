@@ -29,21 +29,6 @@ export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selecte
 
       {/* Detail — the stage */}
       <main className="flex-1 min-w-0">
-        {/* Zone header — future "מהלך הסדנא" entry (placeholder, coming soon) */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:block">מתחם ההכרות</span>
-          <button
-            type="button"
-            disabled
-            title="בקרוב — מהלך הסדנה ייכנס כאן"
-            aria-label="מהלך הסדנא — בקרוב"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 bg-slate-100/70 border border-slate-200 cursor-not-allowed select-none"
-          >
-            <i className="fa-solid fa-person-chalkboard"></i>
-            <span>מהלך הסדנא</span>
-            <span className="text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">בקרוב</span>
-          </button>
-        </div>
         {selectedPrinciple ? (
           <PrincipleDetailView principle={selectedPrinciple} scores={scores} assessed={!!answers[selectedPrinciple.id]} />
         ) : (
@@ -98,6 +83,11 @@ export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selecte
                     </li>
                     <li className="pr-1">
                       <strong className="text-slate-900">פרוטוקול מהלך הסדנה להנהלה (Plug &amp; Play):</strong> מערך מובנה בן 90 דקות המאפשר לכם להעתיק את חוויית המפגש המשותף שלנו אל תוך חדר הישיבות שלכם, ולרתום את צוות ההנהלה המורחב לחשיבה משותפת.
+                      <span className="inline-flex items-center gap-1.5 mr-2 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 bg-slate-100/70 border border-slate-200 select-none align-middle">
+                        <i className="fa-solid fa-person-chalkboard text-xs"></i>
+                        <span>מהלך הסדנא</span>
+                        <span className="text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">בקרוב</span>
+                      </span>
                     </li>
                     <li className="pr-1">
                       <strong className="text-slate-900">כלי האבחון הדיגיטלי ("רדאר שבעת העקרונות"):</strong> שאלון אינטראקטיבי מבוסס מחווני בשלות מפורטים, המייצר עבורכם <strong className="text-primary-700 font-semibold">מפת עכביש דינמית בזמן אמת</strong>, המציגה ויזואלית את נקודות החוזק הבית-ספריות מול אזורי הקריסה הארגוניים.

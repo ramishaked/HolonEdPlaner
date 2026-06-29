@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ActionPlan, SchoolProfile } from '../types';
+import { version } from '../../package.json';
 
 interface SettingsViewProps {
   profile: SchoolProfile;
@@ -9,8 +10,6 @@ interface SettingsViewProps {
   onResetDiagnostic: () => void;
   onClose: () => void;
 }
-
-const APP_VERSION = '0.3 (Demo)';
 
 const fmtSize = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -99,7 +98,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </span>
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900">הגדרות</h1>
-            <p className="text-xs text-slate-500">זהות בית הספר, ניהול נתונים ומידע על המערכת</p>
           </div>
         </div>
         <button
@@ -262,7 +260,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <Card
         icon="fa-solid fa-user-shield"
         title="מסך מנהל המערכת"
-        subtitle="כניסה מאובטחת לניהול המערכת ברמה העירונית. נדרשת סיסמת ניהול."
+        subtitle=""
         accent="text-indigo-600 bg-indigo-50"
       >
         <button
@@ -339,7 +337,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             הכלי מלווה את הנהלת בית הספר במסע: היכרות עם העקרונות, אבחון בשלות עצמי, תכנון פעולות והפקת תוכנית עבודה שנתית.
           </p>
           <div className="flex flex-wrap gap-x-8 gap-y-1 text-xs font-mono text-slate-500 pt-2 border-t border-slate-100">
-            <span><strong>גרסה:</strong> {APP_VERSION}</span>
+            <span><strong>גרסה:</strong> v{version}</span>
             <span><strong>פיתוח:</strong> מינהל החינוך, עיריית חולון</span>
           </div>
         </div>

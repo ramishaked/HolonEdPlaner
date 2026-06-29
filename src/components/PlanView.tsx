@@ -179,7 +179,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
               </span>
               <div className="min-w-0">
                 <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: principle.accentColor }}>עיקרון {principle.id}</span>
-                <h2 className="text-base md:text-xl font-bold text-slate-900 leading-tight">{principle.title}</h2>
+                <h2 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight">{principle.title}</h2>
               </div>
             </div>
             <button
@@ -193,9 +193,6 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
             </button>
           </div>
 
-          <Collapsible title='מדוע זהו עקרון ליבה? (״הלמה״)' icon="fa-solid fa-circle-question" className="mt-3">
-            <p className="text-sm text-slate-600 leading-relaxed text-justify">{principle.rationale}</p>
-          </Collapsible>
         </div>
 
         {/* Two columns: bank+agent (right) · my plan + victory vision (left) */}
@@ -210,7 +207,6 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                   <i className="fa-solid fa-layer-group text-primary-600"></i>
                   בנק פעילויות
                 </h3>
-                <span className="bg-primary-50 text-primary-700 text-xs font-semibold px-2 py-1 rounded-full border border-primary-100">חולון 2026</span>
               </div>
               <p className="text-xs text-slate-500 mb-4 leading-relaxed">
                 לחצו על כרטיס כדי <strong className="text-slate-700">לקרוא בהרחבה</strong>, או על <strong className="font-mono">+</strong> כדי להוסיף לתוכנית.
