@@ -58,7 +58,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
   const addActivity = (item: { title: string; desc: string; type: string }) => {
     const activity: PlanActivity = {
       id: newId(),
-      title: item.type === 'אחר' ? 'פעילות אישית חדשה' : item.title,
+      title: item.type === 'אחר' ? 'יוזמה ייחודית של בית הספר' : item.title,
       desc: item.desc,
       metrics: '',
       target: 'all',
@@ -244,6 +244,39 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                   );
                 })}
               </div>
+
+              {/* משימה בית-ספרית ייחודית — נפרדת מהבנק העירוני, זמינה בכל עיקרון */}
+              {(() => {
+                const th = themeFor('אחר');
+                return (
+                  <div className="mt-4 pt-4 border-t border-dashed border-slate-200">
+                    <p className="text-[11px] font-bold text-slate-400 mb-2 flex items-center gap-1.5">
+                      <i className="fa-solid fa-school text-[10px]" style={{ color: th.accent }}></i>
+                      משימה בית-ספרית
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => addActivity({ title: 'יוזמה ייחודית / אחר', desc: '', type: 'אחר' })}
+                      className="w-full text-right border border-dashed rounded-xl p-3.5 transition-all cursor-pointer hover:shadow-sm"
+                      style={{ borderColor: th.accent, backgroundColor: `${th.accent}0d` }}
+                      title="הוספת יוזמה ייחודית לתוכנית"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <span className="font-bold text-slate-800 text-sm">יוזמה ייחודית / אחר</span>
+                        <span
+                          className="text-white rounded-lg w-7 h-7 flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: th.accent }}
+                        >
+                          <i className="fa-solid fa-plus text-xs"></i>
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        הוסיפו משימה ייחודית של בית הספר שאינה מבנק הפעילויות העירוני. ניתן להוסיף כמה שתרצו.
+                      </p>
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* AI agent (mock) */}
@@ -355,7 +388,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                             className="font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-primary-500 focus:outline-none px-1 py-0.5 rounded text-sm w-full"
                           />
                           <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${th.badge}`}>{a.type}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${th.badge}`}>{a.type === 'אחר' ? 'יוזמה ייחודית' : a.type}</span>
                             <button onClick={() => removeActivity(a.id)} className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors" title="מחיקה">
                               <i className="fa-solid fa-trash-can text-xs"></i>
                             </button>
