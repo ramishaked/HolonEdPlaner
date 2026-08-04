@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { PRINCIPLES_DATA } from '../data';
-import { DiagnosticAnswers, PlanActivity, PrinciplePlan } from '../types';
+import { DiagnosticAnswers, PlanActivity, PrinciplePlan, TaskSource } from '../types';
 import { PrincipleMenu } from './PrincipleMenu';
 import { Collapsible } from './Collapsible';
-import { BankItem, themeFor, METRICS_MOCK, ACTIVITY_BANK_BY_PRINCIPLE } from '../planBank';
+import { BankItem, sourceMeta, METRICS_MOCK, ACTIVITY_BANK_BY_PRINCIPLE } from '../planBank';
+
+// Displayed chip = task source. Older saved plans have no `source`: derive it
+// (custom "אחר" tasks → school, everything else → municipal).
+const activitySource = (a: PlanActivity): TaskSource =>
+  a.source ?? (a.type === 'אחר' ? 'בית ספרי' : 'עירוני');
 
 interface PlanViewProps {
   scores: { [key: number]: number };
@@ -13,6 +18,7 @@ interface PlanViewProps {
 }
 
 const PLANS_KEY = 'school_principle_plans_v1';
+const BANK_COLLAPSE_KEY = 'school_plan_bank_collapsed_v1';
 
 const newId = () => 'act-' + Math.random().toString(36).slice(2, 9);
 
@@ -44,6 +50,22 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
   const [metricsLoadingId, setMetricsLoadingId] = useState<string | null>(null);
   const [visionLoading, setVisionLoading] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [visionOpen, setVisionOpen] = useState(false);
+
+  // Collapse the activity-bank column so the plan builder can take the full width
+  // (like the principles menu rail). Choice is remembered across sessions.
+  const [bankCollapsed, setBankCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem(BANK_COLLAPSE_KEY);
+    if (saved === 'true') return true;
+    if (saved === 'false') return false;
+    return typeof window !== 'undefined' && window.innerWidth < 1024;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(BANK_COLLAPSE_KEY, String(bankCollapsed));
+  }, [bankCollapsed]);
 
   // Agent results reset when switching principle
   useEffect(() => {
@@ -55,9 +77,10 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
   const mutatePlan = (id: number, fn: (p: PrinciplePlan) => PrinciplePlan) =>
     setPlans((prev) => ({ ...prev, [id]: fn(prev[id] || blankPlan()) }));
 
-  const addActivity = (item: { title: string; desc: string; type: string }) => {
+  const addActivity = (item: { title: string; desc: string; type: string; source: TaskSource }) => {
+    const id = newId();
     const activity: PlanActivity = {
-      id: newId(),
+      id,
       title: item.type === 'אחר' ? 'יוזמה ייחודית של בית הספר' : item.title,
       desc: item.desc,
       metrics: '',
@@ -65,9 +88,16 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
       owner: '',
       priority: 'medium',
       type: item.type,
-      isExpanded: true, // new activities open for editing
+      source: item.source,
+      isExpanded: false, // enter collapsed to keep the plan scannable; the "טרם הושלם" chip invites completion
     };
     mutatePlan(activeTab, (p) => ({ ...p, activities: [...p.activities, activity] }));
+    // Flash + scroll so a collapsed add is clearly noticed
+    setFlashId(id);
+    setTimeout(() => {
+      document.getElementById(`plan-activity-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+    setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1400);
   };
 
   const removeActivity = (aid: string) =>
@@ -85,6 +115,9 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
       activities: p.activities.map((a) => (a.id === aid ? { ...a, ...fields } : a)),
     }));
 
+  // A task still needs the principal's attention until it has both an owner and a short description.
+  const isIncomplete = (a: PlanActivity) => !a.owner?.trim() || !a.desc?.trim();
+
   const setVictoryVision = (text: string) => mutatePlan(activeTab, (p) => ({ ...p, victoryVision: text }));
 
   // ---- mock AI ---------------------------------------------------------------
@@ -97,7 +130,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
         key: 'agent-' + Math.random().toString(36).slice(2, 7),
         title: `יוזמת AI מותאמת ${n}`,
         type: 'סוכן AI',
-        badge: 'סוכן AI',
+        source: 'בית ספרי',
         short: `רעיון ${n} שנוצר עבור: ${q}`,
         goal: `קידום עקרון "${principle.title}" באמצעות פעילות ממוקדת שנוצרה לבקשתך.`,
         audience: 'מותאם לקהל היעד שהוגדר בבקשה.',
@@ -195,11 +228,27 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
 
         </div>
 
-        {/* Two columns: bank+agent (right) · my plan + victory vision (left) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Two columns: bank+agent (right) · my plan + victory vision (left).
+            The bank column collapses to a narrow rail so the plan builder can
+            take the full width — like the principles menu. */}
+        <div className="flex flex-col lg:flex-row gap-6">
 
-          {/* RIGHT: Activity bank + AI agent */}
-          <aside className="lg:col-span-5 space-y-6">
+          {/* RIGHT: Activity bank + AI agent — collapsible */}
+          <aside className={`shrink-0 space-y-6 ${bankCollapsed ? 'lg:w-14' : 'lg:w-[38%]'}`}>
+            {bankCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setBankCollapsed(false)}
+                title="הצג בנק פעילויות"
+                aria-label="הצג בנק פעילויות"
+                className="w-full lg:h-full bg-white border border-slate-200 shadow-sm rounded-2xl p-2.5 flex lg:flex-col items-center justify-center gap-3 text-slate-400 hover:text-primary-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <i className="fa-solid fa-angles-left"></i>
+                <i className="fa-solid fa-layer-group text-primary-600 text-base"></i>
+                <span className="text-xs font-bold text-slate-500 lg:[writing-mode:vertical-rl] lg:rotate-180">בנק פעילויות</span>
+              </button>
+            ) : (
+            <>
             {/* Bank */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
               <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
@@ -207,6 +256,15 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                   <i className="fa-solid fa-layer-group text-primary-600"></i>
                   בנק פעילויות
                 </h3>
+                <button
+                  type="button"
+                  onClick={() => setBankCollapsed(true)}
+                  title="כווץ את בנק הפעילויות"
+                  aria-label="כווץ את בנק הפעילויות"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <i className="fa-solid fa-angles-right"></i>
+                </button>
               </div>
               <p className="text-xs text-slate-500 mb-4 leading-relaxed">
                 לחצו על כרטיס כדי <strong className="text-slate-700">לקרוא בהרחבה</strong>, או על <strong className="font-mono">+</strong> כדי להוסיף לתוכנית.
@@ -214,7 +272,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
 
               <div className="flex flex-col gap-3">
                 {(ACTIVITY_BANK_BY_PRINCIPLE[activeTab] ?? []).map((item) => {
-                  const th = themeFor(item.type);
+                  const th = sourceMeta(item.source);
                   return (
                     <div
                       key={item.key}
@@ -224,7 +282,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                     >
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <span className="font-bold text-slate-800 text-sm">{item.title}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${th.badge}`}>{item.badge}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${th.badge}`}>{item.source}</span>
                       </div>
                       <p className="text-xs text-slate-500 mb-3 leading-relaxed">{item.short}</p>
                       <div className="flex items-center justify-between">
@@ -232,7 +290,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                           <i className="fa-solid fa-eye text-[10px]"></i> פרטים מלאים
                         </span>
                         <button
-                          onClick={(e) => { e.stopPropagation(); addActivity({ title: item.title, desc: item.short, type: item.type }); }}
+                          onClick={(e) => { e.stopPropagation(); addActivity({ title: item.title, desc: item.short, type: item.type, source: item.source }); }}
                           className="text-white rounded-lg px-3 py-1.5 text-xs font-bold flex items-center gap-1 transition-opacity hover:opacity-90"
                           style={{ backgroundColor: th.accent }}
                           title="הוסף לתוכנית"
@@ -247,7 +305,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
 
               {/* משימה בית-ספרית ייחודית — נפרדת מהבנק העירוני, זמינה בכל עיקרון */}
               {(() => {
-                const th = themeFor('אחר');
+                const th = sourceMeta('בית ספרי');
                 return (
                   <div className="mt-4 pt-4 border-t border-dashed border-slate-200">
                     <p className="text-[11px] font-bold text-slate-400 mb-2 flex items-center gap-1.5">
@@ -256,7 +314,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                     </p>
                     <button
                       type="button"
-                      onClick={() => addActivity({ title: 'יוזמה ייחודית / אחר', desc: '', type: 'אחר' })}
+                      onClick={() => addActivity({ title: 'יוזמה ייחודית / אחר', desc: '', type: 'אחר', source: 'בית ספרי' })}
                       className="w-full text-right border border-dashed rounded-xl p-3.5 transition-all cursor-pointer hover:shadow-sm"
                       style={{ borderColor: th.accent, backgroundColor: `${th.accent}0d` }}
                       title="הוספת יוזמה ייחודית לתוכנית"
@@ -281,10 +339,17 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
 
             {/* AI agent (mock) */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
-                <span className="bg-primary-50 text-primary-600 p-1.5 rounded-lg"><i className="fa-solid fa-wand-magic-sparkles"></i></span>
-                <h4 className="font-bold text-sm text-slate-800">סוכן AI: איתור יוזמות נוספות</h4>
+              <div
+                className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100 cursor-pointer"
+                onClick={() => setAgentOpen((o) => !o)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="bg-primary-50 text-primary-600 p-1.5 rounded-lg"><i className="fa-solid fa-wand-magic-sparkles"></i></span>
+                  <h4 className="font-bold text-sm text-slate-800">סוכן AI: איתור יוזמות נוספות</h4>
+                </div>
+                <i className={`fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 ${agentOpen ? 'rotate-180' : ''}`}></i>
               </div>
+              <div className={agentOpen ? 'mt-3' : 'hidden'}>
               <p className="text-xs text-slate-500 mb-3 leading-relaxed">
                 צריכים עוד רעיונות? הפעילו את הסוכן שיחפש פעילויות מותאמות לקהל היעד שלכם.
                 <span className="block text-[10px] text-slate-400 mt-1">(הדגמה — בהמשך יחובר ל-AI אמיתי דרך השרת.)</span>
@@ -315,16 +380,16 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                   <h5 className="text-xs font-bold text-primary-700 mb-2 flex items-center gap-1.5"><i className="fa-solid fa-sparkles"></i> פעילויות שהתגלו:</h5>
                   <div className="flex flex-col gap-2.5 max-h-72 overflow-y-auto custom-scroll pr-1">
                     {agentResults.map((item) => (
-                      <div key={item.key} onClick={() => setModalItem(item)} className="p-3 rounded-lg border border-slate-200 border-r-4 bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer" style={{ borderRightColor: themeFor('סוכן AI').accent }}>
+                      <div key={item.key} onClick={() => setModalItem(item)} className="p-3 rounded-lg border border-slate-200 border-r-4 bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer" style={{ borderRightColor: sourceMeta(item.source).accent }}>
                         <div className="flex items-start justify-between gap-1.5">
                           <span className="font-bold text-xs text-slate-800">{item.title}</span>
-                          <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold px-1.5 py-0.5 rounded-full">{item.badge}</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${sourceMeta(item.source).badge}`}>{item.source}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 leading-normal mt-1">{item.short}</p>
                         <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-200">
                           <span className="text-[10px] text-slate-400 flex items-center gap-1"><i className="fa-solid fa-eye text-[9px]"></i> פרטים</span>
                           <button
-                            onClick={(e) => { e.stopPropagation(); addActivity({ title: item.title, desc: item.short, type: 'סוכן AI' }); }}
+                            onClick={(e) => { e.stopPropagation(); addActivity({ title: item.title, desc: item.short, type: 'סוכן AI', source: item.source }); }}
                             className="bg-primary-600 hover:bg-primary-700 text-white rounded-md px-2.5 py-1 text-[10px] font-bold flex items-center gap-1"
                             title="הוסף לתוכנית"
                           >
@@ -336,11 +401,14 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                   </div>
                 </div>
               )}
+              </div>
             </div>
+            </>
+            )}
           </aside>
 
           {/* LEFT: My plan + victory vision */}
-          <section className="lg:col-span-7 space-y-6">
+          <section className="lg:flex-1 min-w-0 space-y-6">
             {/* My plan workspace */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
               <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
@@ -372,9 +440,14 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
               ) : (
                 <div className="space-y-4">
                   {plan.activities.map((a) => {
-                    const th = themeFor(a.type);
+                    const th = sourceMeta(activitySource(a));
                     return (
-                      <div key={a.id} className="border border-slate-200 border-r-4 rounded-xl overflow-hidden bg-white shadow-sm" style={{ borderRightColor: th.accent }}>
+                      <div
+                        key={a.id}
+                        id={`plan-activity-${a.id}`}
+                        className={`border border-slate-200 border-r-4 rounded-xl overflow-hidden bg-white shadow-sm transition-all duration-500 ${a.id === flashId ? 'ring-2 ring-primary-400 ring-offset-1' : ''}`}
+                        style={{ borderRightColor: th.accent }}
+                      >
                         <div
                           className="px-3 py-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-100/60 transition-colors"
                           onClick={() => toggleExpand(a.id)}
@@ -388,7 +461,16 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                             className="font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-primary-500 focus:outline-none px-1 py-0.5 rounded text-sm w-full"
                           />
                           <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${th.badge}`}>{a.type === 'אחר' ? 'יוזמה ייחודית' : a.type}</span>
+                            {isIncomplete(a) && (
+                              <span
+                                className="hidden sm:flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200"
+                                title="חסרים אחראי או הסבר קצר — הרחיבו כדי להשלים"
+                              >
+                                <i className="fa-solid fa-circle-exclamation text-[9px]"></i>
+                                טרם הושלם
+                              </span>
+                            )}
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${th.badge}`}>{activitySource(a)}</span>
                             <button onClick={() => removeActivity(a.id)} className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors" title="מחיקה">
                               <i className="fa-solid fa-trash-can text-xs"></i>
                             </button>
@@ -477,7 +559,10 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
 
             {/* Victory vision */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div
+                className="flex items-center justify-between gap-3 cursor-pointer"
+                onClick={() => setVisionOpen((o) => !o)}
+              >
                 <div className="flex items-center gap-3">
                   <span className="bg-amber-100 text-amber-600 w-10 h-10 rounded-xl flex items-center justify-center"><i className="fa-solid fa-trophy text-lg"></i></span>
                   <div>
@@ -485,25 +570,38 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
                     <p className="text-xs text-slate-500">איך ייראה השינוי בעיקרון זה בסוף השנה?</p>
                   </div>
                 </div>
-                <button
-                  onClick={generateVision}
-                  disabled={visionLoading}
-                  className="bg-primary-600 hover:bg-primary-700 transition-all text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm disabled:opacity-70 cursor-pointer"
-                >
-                  <i className={`fa-solid ${visionLoading ? 'fa-spinner animate-spin' : 'fa-wand-magic-sparkles'}`}></i>
-                  <span>{visionLoading ? 'מנסח...' : 'ניסוח בעזרת AI'}</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {!visionOpen && plan.victoryVision?.trim() && (
+                    <span className="hidden sm:flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+                      <i className="fa-solid fa-check text-[9px]"></i>
+                      נוסח
+                    </span>
+                  )}
+                  <i className={`fa-solid fa-chevron-down text-sm text-slate-400 transition-transform duration-200 ${visionOpen ? 'rotate-180' : ''}`}></i>
+                </div>
               </div>
-              <textarea
-                value={plan.victoryVision}
-                onChange={(e) => setVictoryVision(e.target.value)}
-                rows={4}
-                placeholder="לדוגמה: צוות בית הספר שולט בכלי AI, מייצר פדגוגיה חדשנית ומפנה זמן יקר למפגש אישי ורגשי עם התלמידים..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm leading-relaxed"
-              />
-              <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3">
-                <i className="fa-solid fa-lightbulb text-amber-500"></i>
-                <span>טיפ: הוספת פעילויות לתוכנית תעזור לנסח תמונת ניצחון מדויקת יותר.</span>
+              <div className={visionOpen ? 'mt-4 space-y-3' : 'hidden'}>
+                <div className="flex justify-end">
+                  <button
+                    onClick={generateVision}
+                    disabled={visionLoading}
+                    className="bg-primary-600 hover:bg-primary-700 transition-all text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm disabled:opacity-70 cursor-pointer"
+                  >
+                    <i className={`fa-solid ${visionLoading ? 'fa-spinner animate-spin' : 'fa-wand-magic-sparkles'}`}></i>
+                    <span>{visionLoading ? 'מנסח...' : 'ניסוח בעזרת AI'}</span>
+                  </button>
+                </div>
+                <textarea
+                  value={plan.victoryVision}
+                  onChange={(e) => setVictoryVision(e.target.value)}
+                  rows={4}
+                  placeholder="לדוגמה: צוות בית הספר שולט בכלי AI, מייצר פדגוגיה חדשנית ומפנה זמן יקר למפגש אישי ורגשי עם התלמידים..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm leading-relaxed"
+                />
+                <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <i className="fa-solid fa-lightbulb text-amber-500"></i>
+                  <span>טיפ: הוספת פעילויות לתוכנית תעזור לנסח תמונת ניצחון מדויקת יותר.</span>
+                </div>
               </div>
             </div>
           </section>
@@ -514,11 +612,11 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
       {modalItem && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4 print:hidden" onClick={() => setModalItem(null)} dir="rtl">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-xl w-full overflow-hidden animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-2" style={{ backgroundColor: themeFor(modalItem.type).accent }}></div>
+            <div className="h-2" style={{ backgroundColor: sourceMeta(modalItem.source).accent }}></div>
             <div className="p-6">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <span className={`border px-2.5 py-1 rounded-full text-[10px] font-bold ${themeFor(modalItem.type).badge}`}>{modalItem.badge}</span>
+                  <span className={`border px-2.5 py-1 rounded-full text-[10px] font-bold ${sourceMeta(modalItem.source).badge}`}>{modalItem.source}</span>
                   <h3 className="text-lg md:text-xl font-bold text-slate-800 mt-2">{modalItem.title}</h3>
                 </div>
                 <button onClick={() => setModalItem(null)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-1.5 rounded-lg transition-colors"><i className="fa-solid fa-xmark text-lg"></i></button>
@@ -546,9 +644,9 @@ export const PlanView: React.FC<PlanViewProps> = ({ scores, answers, onOpenPrinc
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button onClick={() => setModalItem(null)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">סגור</button>
                 <button
-                  onClick={() => { addActivity({ title: modalItem.title, desc: modalItem.short, type: modalItem.type }); setModalItem(null); }}
+                  onClick={() => { addActivity({ title: modalItem.title, desc: modalItem.short, type: modalItem.type, source: modalItem.source }); setModalItem(null); }}
                   className="text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md hover:opacity-90"
-                  style={{ backgroundColor: themeFor(modalItem.type).accent }}
+                  style={{ backgroundColor: sourceMeta(modalItem.source).accent }}
                 >
                   <i className="fa-solid fa-plus"></i> הוספה לתוכנית שלי
                 </button>

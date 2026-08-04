@@ -4,7 +4,9 @@ import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { initiate, generate } from "./api/_lib/ai.js";
 
-dotenv.config();
+// Load .env.local first (documented location for GEMINI_API_KEY, next to the
+// Vercel OIDC token), falling back to .env. Dev-only — prod uses Vercel env vars.
+dotenv.config({ path: [".env.local", ".env"] });
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;

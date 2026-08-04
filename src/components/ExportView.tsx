@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { PRINCIPLES_DATA } from '../data';
-import { ActionPlan, DiagnosticAnswers, PrinciplePlan } from '../types';
+import { ActionPlan, DiagnosticAnswers, PlanActivity, PrinciplePlan, TaskSource } from '../types';
 import { PRINCIPLE_SHORT_TITLES } from './PrincipleMenu';
 import { RadarChart } from './RadarChart';
-import { themeFor } from '../planBank';
+import { sourceMeta } from '../planBank';
+
+// Displayed chip = task source; fall back for older saved plans without `source`.
+const activitySource = (a: PlanActivity): TaskSource =>
+  a.source ?? (a.type === 'אחר' ? 'בית ספרי' : 'עירוני');
 
 interface ExportViewProps {
   scores: { [key: number]: number };
@@ -392,12 +396,12 @@ export const ExportView: React.FC<ExportViewProps> = ({
                       </div>
                       <div className="p-4 space-y-3">
                         {plan.activities.map((a) => {
-                          const th = themeFor(a.type);
+                          const th = sourceMeta(activitySource(a));
                           return (
                             <div key={a.id} className="border border-slate-100 rounded-lg p-3 bg-white">
                               <div className="flex items-start justify-between gap-2 mb-1">
                                 <span className="font-bold text-sm text-slate-800">{a.title}</span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${th.badge}`}>{a.type}</span>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${th.badge}`}>{activitySource(a)}</span>
                               </div>
                               {a.desc && <p className="text-xs text-slate-600 leading-relaxed mb-2">{a.desc}</p>}
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-[11px] text-slate-500">

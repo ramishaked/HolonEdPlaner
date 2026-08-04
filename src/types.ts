@@ -51,6 +51,10 @@ export interface DiagnosticAnswers {
 }
 
 // --- מתחם התכנון (planning zone): per-principle action-plan builder ---
+// Task "source" — where the initiative comes from. Closed vocabulary; becomes a
+// per-task DB attribute in Phase 2. Drives the chip label + colour.
+export type TaskSource = 'עירוני' | 'בית ספרי' | 'משרד החינוך' | 'ארצי' | 'עולמי';
+
 export interface PlanActivity {
   id: string;
   title: string;
@@ -59,7 +63,8 @@ export interface PlanActivity {
   target: 'all' | 'layers' | 'teachers';
   owner: string;
   priority: 'high' | 'medium' | 'low';
-  type: string; // category label (e.g. בית רותר / סדנת AI / האקתון / אחר / סוכן AI)
+  type: string; // internal category (drives metrics + victory-vision heuristics; not displayed)
+  source?: TaskSource; // displayed chip — task origin. Optional for back-compat with older saved plans.
   isExpanded?: boolean; // workspace accordion open/closed state
 }
 
