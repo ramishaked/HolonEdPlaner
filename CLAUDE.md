@@ -57,7 +57,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **ESM gotcha:** `package.json` הוא `"type":"module"` → imports יחסיים ב-`api/`/`server.ts` חייבים סיומת `.js` (למשל `./api/_lib/ai.js`), אחרת Vercel זורק `ERR_MODULE_NOT_FOUND`.
 
 ### Deploy (Vercel)
-push ל-`origin/main` (github.com/ramishaked/HolonEdPlaner) → auto-deploy לפרוד (`holon-edplaner.vercel.app`). `vercel.json`: framework vite, build `vite build`. `GEMINI_API_KEY` מוגדר ב-Vercel Production בלבד.
+**מודל הענפים (מ-2026-08-06):** `main` הוא ה-Production Branch של Vercel — **מוקפא** על מה שרץ בפרוד (`holon-edplaner.vercel.app`, כרגע `67b2ae3`, מצב שלפני ה-DB). **לא מחייבים ולא דוחפים ל-`main` בשוטף.** כל עבודת Phase 2 חיה על ענף **`phase-2`** (נדחף ל-origin לגיבוי). דחיפה ל-`phase-2` בונה **preview בלבד** (`target: null`, מוגן ב-Vercel SSO, בלי DB) — לעולם לא נוגעת בפרוד.
+
+**איך עושים deploy לפרוד — רק באישור מפורש מהמשתמש:**
+1. Vercel → Project → Settings → Environment Variables (Production): להגדיר `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (anon/publishable בלבד — **לעולם לא** service_role). `GEMINI_API_KEY` כבר מוגדר ב-Production.
+2. לוודא שכל המיגרציות תחת `supabase/migrations/` הוחלו על פרויקט ה-Supabase שהפרוד מצביע אליו.
+3. `npm run lint` (tsc --noEmit) + `npm run build` נקיים; לעדכן `CHANGELOG.md`.
+4. למזג `phase-2 → main` ולדחוף → Vercel עושה auto-deploy אחד לפרוד.
+5. לאמת את הפרוד החי (טעינה, לוגין, טעינת עקרונות מה-DB).
+
+`vercel.json`: framework vite, build `vite build`.
 
 ## שלבי פיתוח
 
@@ -83,7 +92,7 @@ localStorage + ללא auth. הפרוד (`holon-edplaner.vercel.app`) עדיין 
 - כותרת ראשית קבועה בכל המסכים: "הפלנר (Holon School Educational Planner)".
 
 ## הסכמות עבודה
-- commits קטנים וברורים; deploy מוקדם (thin slice) לפני הוספת פיצ'רים.
+- commits קטנים וברורים. **בזמן Phase 2 הפרוד מוקפא:** העבודה נצברת על ענף `phase-2` (דוחפים חופשי לגיבוי) ומתמזגת ל-`main` רק בריליז מכוון ומאושר — ראה "Deploy (Vercel)". אין deploy אוטומטי מ-`main` בשוטף.
 - לדווח לפני שינויים לא-טריוויאליים.
 - בעת עדכון מסך שמציג את העקרונות — להשתמש מחדש ב-`PrincipleMenu` ובסדר הקנוני מ-`usePrinciples()`, לא להמציא חדש. אין לקבע את **מספר** העקרונות בטקסט או בקוד: הוא דינמי (לבית ספר עם עיקרון ייחודי יש יותר).
 
