@@ -90,7 +90,9 @@ export const ExportView: React.FC<ExportViewProps> = ({
   onUpdateConfig,
 }) => {
   const { principles, shortTitles } = usePrinciples();
-  const { audiences } = useAudiences();
+  // `all`, not the active subset: a retired audience must keep its label on activities
+  // that already reference it, or it silently disappears from the exported document.
+  const { all: allAudiences } = useAudiences();
 
   // Builder config lives in App (DB-backed). Merge over defaults so newly added
   // section keys are backfilled for plans saved before they existed.
@@ -516,7 +518,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
                               {a.desc && <p className="text-xs text-slate-600 leading-relaxed mb-2">{a.desc}</p>}
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-[11px] text-slate-500">
                                 <span><strong className="text-slate-700">אחראי:</strong> {a.owner || '—'}</span>
-                                <span><strong className="text-slate-700">קהל יעד:</strong> {audienceLabel(a.audiences, a.audienceNote, audiences)}</span>
+                                <span><strong className="text-slate-700">קהל יעד:</strong> {audienceLabel(a.audiences, a.audienceNote, allAudiences)}</span>
                                 <span><strong className="text-slate-700">עדיפות:</strong> {PRIORITY_LABEL[a.priority]}</span>
                               </div>
                               {a.metrics && (

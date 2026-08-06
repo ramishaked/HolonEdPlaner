@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
 /**
@@ -8,39 +8,60 @@ import { supabase } from './supabase';
  * that reveals the free-text note.
  */
 export interface Audience {
+  id: string;
   slug: string;
   label: string;
   isOther: boolean;
+  isActive: boolean;
+  position: number;
 }
 
+/**
+ * Reads the whole picklist, retired entries included. Deactivating an audience must
+ * remove it from the pickers without erasing it from activities that already carry it —
+ * the slugs live in `text[]` columns with no FK, so an unresolvable slug would simply
+ * vanish from a saved plan and from the exported document. Callers pick their list:
+ * `audiences` (active) to choose from, `all` to render a label.
+ */
 export async function fetchAudiences(): Promise<Audience[]> {
   const { data, error } = await supabase
     .from('audiences')
-    .select('slug, label, is_other')
-    .eq('is_active', true)
+    .select('id, slug, label, is_other, is_active, position')
     .order('position');
 
   if (error || !data) return [];
-  return data.map((r) => ({ slug: r.slug, label: r.label, isOther: r.is_other }));
+  return data.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    label: r.label,
+    isOther: r.is_other,
+    isActive: r.is_active,
+    position: r.position,
+  }));
 }
 
 export function useAudiences() {
-  const [audiences, setAudiences] = useState<Audience[]>([]);
+  const [all, setAll] = useState<Audience[]>([]);
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+
+  const reload = useCallback(() => setAttempt((n) => n + 1), []);
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     fetchAudiences().then((rows) => {
       if (!active) return;
-      setAudiences(rows);
+      setAll(rows);
       setLoading(false);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt]);
 
-  return { audiences, loading };
+  // `audiences` — what may be chosen. `all` — what may be displayed.
+  return { audiences: all.filter((a) => a.isActive), all, loading, reload };
 }
 
 /**

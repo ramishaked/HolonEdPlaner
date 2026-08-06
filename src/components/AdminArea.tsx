@@ -55,7 +55,7 @@ const Stat: React.FC<{ value: number | string; label: string }> = ({ value, labe
 
 export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
   const { principles } = usePrinciples();
-  const { audiences } = useAudiences();
+  const { audiences, all: allAudiences } = useAudiences();
   const { bank, all: bankItems, loading, reload } = useActivityBank();
 
   // The dashboard is the landing view: an admin arrives asking "what's going on",
@@ -230,7 +230,7 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
                       ))}
                     {!!item.audiences.length && (
                       <span className="text-[10px] text-slate-400">
-                        · {audienceLabel(item.audiences, item.audienceNote, audiences)}
+                        · {audienceLabel(item.audiences, item.audienceNote, allAudiences)}
                       </span>
                     )}
                   </div>

@@ -84,7 +84,9 @@ export const PlanView: React.FC<PlanViewProps> = ({
 }) => {
   const { principles } = usePrinciples();
   const { bank, loading: bankLoading } = useActivityBank();
-  const { audiences } = useAudiences();
+  // `audiences` — what may be picked (active only). `allAudiences` — what may be
+  // displayed, so a retired audience still renders on activities that carry it.
+  const { audiences, all: allAudiences } = useAudiences();
   const [activeTab, setActiveTab] = useState<number>(1);
 
   const principle = principles.find((p) => p.id === activeTab) || principles[0];
@@ -893,7 +895,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <h4 className="font-bold text-teal-700 flex items-center gap-1.5 text-xs uppercase mb-1"><i className="fa-solid fa-users"></i> קהל יעד מומלץ</h4>
-                    <p className="text-xs text-slate-600">{audienceLabel(modalItem.audiences, modalItem.audienceNote, audiences)}</p>
+                    <p className="text-xs text-slate-600">{audienceLabel(modalItem.audiences, modalItem.audienceNote, allAudiences)}</p>
                   </div>
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <h4 className="font-bold text-purple-700 flex items-center gap-1.5 text-xs uppercase mb-1"><i className="fa-solid fa-address-book"></i> למי פונים ברשות?</h4>

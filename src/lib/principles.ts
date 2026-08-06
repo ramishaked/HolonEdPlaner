@@ -16,12 +16,19 @@ export interface LoadedPrinciples {
   orderToId: Record<number, string>;
 }
 
-export async function fetchPrinciples(): Promise<LoadedPrinciples | null> {
-  const { data, error } = await supabase
+/**
+ * `includeInactive` is for the municipal admin console, which must list retired
+ * principles in order to bring them back. The school journey never passes it.
+ */
+export async function fetchPrinciples(
+  opts: { includeInactive?: boolean } = {},
+): Promise<LoadedPrinciples | null> {
+  let query = supabase
     .from('principles')
-    .select('*, principle_sources(*), principle_rubric_levels(*)')
-    .eq('is_active', true)
-    .order('order_index');
+    .select('*, principle_sources(*), principle_rubric_levels(*)');
+  if (!opts.includeInactive) query = query.eq('is_active', true);
+
+  const { data, error } = await query.order('order_index');
 
   if (error || !data) return null;
 
@@ -31,6 +38,9 @@ export async function fetchPrinciples(): Promise<LoadedPrinciples | null> {
   const orderToId: Record<number, string> = {};
 
   for (const row of data) {
+    // NOTE: municipal and school-scoped principles share this map, keyed by order_index.
+    // Nothing creates school-scoped principles today; when that arrives, namespace their
+    // order_index (1000+) so it cannot collide with the municipal 1..N.
     const orderId = row.order_index;
     orderToId[orderId] = row.id;
     shortTitles[orderId] = row.title;
@@ -41,6 +51,9 @@ export async function fetchPrinciples(): Promise<LoadedPrinciples | null> {
 
     principles.push({
       id: orderId,
+      uuid: row.id,
+      isActive: row.is_active,
+      scope: row.scope,
       title: row.title,
       icon: row.icon,
       colorName: row.color_name,

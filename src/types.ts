@@ -1,5 +1,12 @@
 export interface Principle {
+  /** UI id — the DB's `order_index`. A runtime projection only: everything persisted
+   *  (plan_*, activity links) references `uuid`, so reordering never breaks saved data. */
   id: number;
+  /** The DB row id — the real key, needed by the admin write layer. */
+  uuid: string;
+  /** false → hidden from the school journey. Only the admin console ever sees these. */
+  isActive: boolean;
+  scope: 'municipal' | 'school';
   title: string;
   icon: string;
   colorName: string; // Tailwind class identifier, e.g., 'purple', 'blue', 'orange', 'cyan', 'emerald', 'indigo', 'rose'
