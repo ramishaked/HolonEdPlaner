@@ -90,14 +90,16 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
       {tab === 'bank' && (
         <BankTab viewer={viewer} onNotice={setNotice} bank={bankState} audiences={audiencesState} />
       )}
-      {tab === 'principles' && <PrinciplesTab bank={bankState} />}
+      {tab === 'principles' && (
+        <PrinciplesTab viewer={viewer} onNotice={setNotice} bank={bankState} />
+      )}
       {tab === 'audiences' && (
         <AudiencesTab viewer={viewer} onNotice={setNotice} audiences={audiencesState} />
       )}
 
       {tab !== 'dashboard' && (
         <p className="text-[11px] text-slate-400 text-center pb-2">
-          טרם נבנה במסך זה: עריכת עקרונות, ניהול בתי ספר וסיסמאות, וגרסאות תוכנית.
+          טרם נבנה במסך זה: הוספה והשבתה של בתי ספר, איפוס סיסמאות, וגרסאות תוכנית.
         </p>
       )}
     </div>

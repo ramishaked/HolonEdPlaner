@@ -37,7 +37,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - בנק הפעילויות: `activity_bank_items` → `src/lib/activityBank.ts` (`useActivityBank()`). `ACTIVITY_BANK_BY_PRINCIPLE` **נמחק**.
   - `App.tsx` חוסם את המסע עד שהעקרונות נטענו (ספינר), ומציג מסך שגיאה עם "נסו שוב" אם הטעינה נכשלה.
 - 5 עקרונות, **לפי הסדר הקנוני id1..id5**. ב-2026-08-05 מוזגו "הטמעת מודל BYOD" ו"תרבות מייקרינג" לתוך "חינוך טכנולוגי הוליסטי וספירלי" (מיגרציה `20260805090000_merge_principles_to_five.sql`); השניים לא נמחקו אלא `is_active=false` (מחיקה עושה cascade לכל טבלאות `plan_*`). הרובריקה של עיקרון היעד **לא** שונתה במיזוג — כלומר האבחון מודד רק את ציר הרצף הספירלי.
-- `src/components/PrincipleMenu.tsx` — תפריט העקרונות **האחיד** לכל המסכים (אל תבנו תפריט פר-מסך). `PRINCIPLE_SHORT_TITLES` **נגזר** מהעקרונות שנטענו → מקור אמת יחיד לשמות. לשינוי שם עיקרון: מיגרציה על `principles.title`. חריג: `RadarChart.tsx` מחזיק `shortLabels` קצרים כ-fallback ל-`short_label` שמגיע מה-DB.
+- `src/components/PrincipleMenu.tsx` — תפריט העקרונות **האחיד** לכל מסכי המסע הבית-ספרי (אל תבנו תפריט פר-מסך). `PRINCIPLE_SHORT_TITLES` **נגזר** מהעקרונות שנטענו → מקור אמת יחיד לשמות. שינוי שם עיקרון נעשה מאזור הניהול (או במיגרציה על `principles.title`).
+  **חריג מכוון:** `src/components/admin/PrinciplesTab.tsx` מרנדר רשימת עקרונות משלו. `PrincipleMenu` דורש `scores`/`answers` (מצב אבחון שלמנהל אין), מציג רק עקרונות פעילים, ואין בו מקום לחצי סדר או לתג פעיל/מוסתר. הסדר הקנוני והשמות עדיין מגיעים מה-DB דרך `usePrinciples()`/`useAdminPrinciples()`.
 - `src/planBank.ts` — **רק תצוגה**: `SOURCE_META`/`sourceMeta` (צבע תגית לפי מקור) + `METRICS_MOCK` (הצעות מדדים מוקאפיות). הפריטים עצמם ב-DB.
 
 ### חישוב ציון בשלות — `src/lib/scoring.ts` בלבד
@@ -79,16 +80,21 @@ localStorage + ללא auth. הפרוד (`holon-edplaner.vercel.app`) עדיין 
 - Supabase מחובר בפיתוח: auth פר בית-ספר (דרופדאון + סיסמה, מאחורי הקלעים session סינתטי) + RLS מלא; פונקציות ההרשאה בסכימה פרטית `app`.
 - הגמילה מ-localStorage **הושלמה** — כל מידע דינמי ב-DB, כולל העקרונות ובנק הפעילויות.
 - **למנהל המערכת יש כניסה משלו.** ב-`Onboarding` יש מצב `admin` (קישור בתחתית) שמתחבר ל-`ADMIN_EMAIL` (`admin@holon.test`, בפיתוח סיסמה `9999`) על **אותו לקוח `supabase`** הראשי. `App` מנתב לפי `profiles.role`: `city_admin`/`super_admin` מקבלים את `AdminArea` **במקום כל המסע**, ו-bootstrap התוכנית מדולג להם (אין להם `school_id`). אין יותר לקוח Supabase שני.
-- **`AdminArea`** = שתי לשוניות: `MunicipalDashboard` (ברירת מחדל) וניהול הבנק + סקירת עקרונות/קהלי יעד, שממנו נפתח `ActivityWizard`.
+- **`AdminArea`** = מעטפת בלבד (הדר, לשוניות, באנר הודעות) עם **ארבע לשוניות** ב-`src/components/admin/`: `MunicipalDashboard` (ברירת מחדל) · `BankTab` (חיפוש/יצירה/עריכה/מחיקה, פותח `ActivityWizard` גם במצב `editing`) · `PrinciplesTab` (סדר, הסתרה/החזרה, ופתיחת `PrincipleEditor`) · `AudiencesTab`. שכבת ה-chrome וה-form primitives משותפות ב-`admin/AdminChrome.tsx` ו-`admin/fields.tsx`.
+- `useActivityBank()`/`useAudiences()` מוחזקים **ב-`AdminArea`** ומועברים ללשוניות, כדי שמוני הכותרת והלשוניות יראו עותק אחד.
+- **אין מחיקה קשה של עיקרון** — `plan_*` ו-`activity_bank_item_principles` תלויים ב-`principles(id)` עם `on delete cascade`. הסתרה = `is_active=false` + חניה ב-`order_index` 90+ ומספור מחדש של הנותרים (מוסכמת `20260805090000`).
 - **`SettingsView` הוא רק של בית הספר** — אין בו שום דלת ניהול.
 - **נוסחת הציון ב-`src/lib/scoring.ts` בלבד.** `scoresFor` נותן 1.0 לעיקרון שלא מופה — זו נוחות תצוגה לרדאר ו**אסור** לממצע אותה בין בתי ספר. לאגרגציה יש `mappedScores`, והדשבורד מציג תמיד את מספר בתי הספר שמאחורי כל ממוצע.
 - **בית ספר לא כותב לבנק.** הנתיב היחיד שלו הוא "יוזמה ייחודית / אחר" ב-`PlanView`, שמוסיף לתוכנית בית הספר. ה-RLS אוכף את זה — לא רק ה-UI.
-- **טרם נבנה:** ניהול עקרונות וסיסמאות פר בית-ספר במסך האדמין, ו-UI לגרסאות תוכנית (`plans` + `schools.current_plan_id` כבר קיימים).
+- **טרם נבנה:** הוספה/השבתה של בתי ספר ואיפוס סיסמאות, ו-UI לגרסאות תוכנית (`plans` + `schools.current_plan_id` כבר קיימים).
+  בתי ספר וסיסמאות דורשים נתיב צד-שרת: `schools`/`profiles` ניתנים לכתיבה ל-`super_admin` בלבד (ואין חשבון כזה), והכניסה חיה ב-`auth.users` של GoTrue — כלומר `service_role` מאחורי `api/admin/*` בדפוס של `api/ai/*`, שמאמת את ה-JWT של הקורא בצד השרת. מחיקת בית ספר תמומש כ**השבתה** בלבד.
 
 ## כללים קשיחים
 - **מפתח AI לעולם לא בצד הלקוח.** היועץ רץ רק דרך `api/_lib/ai.ts` עם env var.
 - כל טקסט וכל פריסה — **עברית RTL**.
-- **מידע דינמי — ב-DB בלבד.** אין עותקים סטטיים בקוד (לא fallback, לא mock, לא seed חי). שינוי תוכן = מיגרציה תחת `supabase/migrations/`.
+- **מידע דינמי — ב-DB בלבד.** אין עותקים סטטיים בקוד (לא fallback, לא mock, לא seed חי).
+  שינוי **סכימה** = מיגרציה תחת `supabase/migrations/`; מיגרציות משמשות גם לזריעת סביבה חדשה.
+  שינוי **תוכן** של עקרונות (כולל הרובריקה והמקורות), בנק הפעילויות וקהלי היעד — נעשה **בזמן ריצה** ע"י המנהל העירוני דרך `AdminArea`, לא במיגרציה. הכתיבות עוברות ב-`src/lib/principlesAdmin.ts`, `activityBankAdmin.ts` ו-`audiencesAdmin.ts`, וה-RLS (`app.can_write_scoped`, `audiences_write`) אוכף אותן.
 - מפתח ה-`service_role` של Supabase, כמו `GEMINI_API_KEY`, לעולם לא בצד הלקוח.
 - **לא לעשות deploy לפרוד בלי אישור מפורש מהמשתמש.**
 - כותרת ראשית קבועה בכל המסכים: "הפלנר (Holon School Educational Planner)".

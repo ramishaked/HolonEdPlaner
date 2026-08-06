@@ -1,6 +1,7 @@
 import React from 'react';
 import { Principle } from '../types';
 import { Collapsible } from './Collapsible';
+import { principleTheme } from '../lib/principleTheme';
 
 interface PrincipleDetailViewProps {
   principle: Principle;
@@ -18,93 +19,8 @@ export const PrincipleDetailView: React.FC<PrincipleDetailViewProps> = ({
 }) => {
   const currentScore = scores[principle.id] || 1;
 
-  // Color helper lookup for beautiful visual borders and icons
-  const getThemeColors = (colorName: string) => {
-    switch (colorName) {
-      case 'purple':
-        return {
-          bg: 'bg-purple-50/50',
-          border: 'border-ai/30',
-          text: 'text-ai',
-          accent: 'bg-ai',
-          accentText: 'text-ai',
-          glow: 'shadow-purple-100',
-          badge: 'bg-purple-100/60 text-ai font-bold'
-        };
-      case 'blue':
-        return {
-          bg: 'bg-blue-50/50',
-          border: 'border-holistic/30',
-          text: 'text-holistic',
-          accent: 'bg-holistic',
-          accentText: 'text-holistic',
-          glow: 'shadow-blue-100',
-          badge: 'bg-blue-100/60 text-holistic font-bold'
-        };
-      case 'orange':
-        return {
-          bg: 'bg-orange-50/50',
-          border: 'border-maker/30',
-          text: 'text-maker',
-          accent: 'bg-maker',
-          accentText: 'text-maker',
-          glow: 'shadow-orange-100',
-          badge: 'bg-orange-100/60 text-maker font-bold'
-        };
-      case 'cyan':
-        return {
-          bg: 'bg-cyan-50/50',
-          border: 'border-byod/30',
-          text: 'text-byod',
-          accent: 'bg-byod',
-          accentText: 'text-byod',
-          glow: 'shadow-cyan-100',
-          badge: 'bg-cyan-100/60 text-byod font-bold'
-        };
-      case 'emerald':
-        return {
-          bg: 'bg-emerald-50/50',
-          border: 'border-skills/30',
-          text: 'text-skills',
-          accent: 'bg-skills',
-          accentText: 'text-skills',
-          glow: 'shadow-emerald-100',
-          badge: 'bg-emerald-100/60 text-skills font-bold'
-        };
-      case 'indigo':
-        return {
-          bg: 'bg-primary-50/50',
-          border: 'border-spaces/30',
-          text: 'text-spaces',
-          accent: 'bg-spaces',
-          accentText: 'text-spaces',
-          glow: 'shadow-primary-100',
-          badge: 'bg-primary-100/60 text-spaces font-bold'
-        };
-      case 'rose':
-        return {
-          bg: 'bg-rose-50/50',
-          border: 'border-human/30',
-          text: 'text-human',
-          accent: 'bg-human',
-          accentText: 'text-human',
-          glow: 'shadow-rose-100',
-          badge: 'bg-rose-100/60 text-human font-bold'
-        };
-      default:
-        return {
-          bg: 'bg-slate-50',
-          border: 'border-slate-200',
-          text: 'text-slate-700',
-          accent: 'bg-slate-600',
-          accentText: 'text-slate-700',
-          glow: 'shadow-slate-100',
-          badge: 'bg-slate-100 text-slate-700 font-bold'
-        };
-    }
-  };
-
-  const colors = getThemeColors(principle.colorName);
+  // Closed palette — shared with the admin editor's colour picker so the two cannot drift.
+  const colors = principleTheme(principle.colorName);
 
   return (
     <div className="space-y-8 animate-fade-in text-[#0f172a]">
