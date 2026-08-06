@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { usePrinciples } from '../lib/PrinciplesContext';
 import { useActivityBank } from '../lib/activityBank';
+import { downloadCsv, stampedName } from '../lib/spreadsheet';
 import { useMunicipalStats, STAGE_LABEL, type SchoolStage } from '../lib/municipalStats';
 import { RadarChart } from './RadarChart';
 
@@ -22,18 +23,34 @@ const STAGE_STYLE: Record<SchoolStage, { dot: string; text: string; bg: string }
 
 const STAGE_ORDER: SchoolStage[] = ['planning', 'mapped', 'mapping', 'not_started'];
 
-const Panel: React.FC<{ icon: string; title: string; subtitle?: string; children: React.ReactNode }> = ({
-  icon, title, subtitle, children,
-}) => (
-  <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-    <div className="flex items-start gap-3">
-      <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-indigo-600 bg-indigo-50">
-        <i className={`${icon} text-base`} />
-      </span>
-      <div>
-        <h2 className="font-bold text-slate-900 leading-tight">{title}</h2>
-        {subtitle && <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{subtitle}</p>}
+const Panel: React.FC<{
+  icon: string;
+  title: string;
+  subtitle?: string;
+  onExport?: () => void;
+  children: React.ReactNode;
+}> = ({ icon, title, subtitle, onExport, children }) => (
+  <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4 print:break-inside-avoid print:shadow-none print:border-slate-300">
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-indigo-600 bg-indigo-50">
+          <i className={`${icon} text-base`} />
+        </span>
+        <div>
+          <h2 className="font-bold text-slate-900 leading-tight">{title}</h2>
+          {subtitle && <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{subtitle}</p>}
+        </div>
       </div>
+      {onExport && (
+        <button
+          onClick={onExport}
+          title="ייצוא לגיליון (CSV)"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer shrink-0 print:hidden"
+        >
+          <i className="fa-solid fa-file-arrow-down" />
+          ייצוא
+        </button>
+      )}
     </div>
     {children}
   </section>
@@ -80,6 +97,48 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
     return { taken, untouched };
   }, [stats, bankItems]);
 
+  // Dates go out ISO, not he-IL: a spreadsheet has to be able to sort the column.
+  const exportSchools = () =>
+    downloadCsv(
+      stampedName('בתי-ספר'),
+      ['בית הספר', 'סטטוס', 'עקרונות שמופו', 'סך העקרונות', 'פעילויות', 'ציון ממוצע', 'עודכן'],
+      (stats?.schools ?? []).map((s) => [
+        s.name, STAGE_LABEL[s.stage], String(s.mapped), String(principleIds.length),
+        String(s.activities), s.averageScore?.toFixed(1) ?? '',
+        s.updatedAt ? s.updatedAt.slice(0, 10) : '',
+      ]),
+    );
+
+  // Carries the focus picks too, so the "what schools focus on" panel needs no button.
+  const exportMaturity = () =>
+    downloadCsv(
+      stampedName('בשלות-עירונית'),
+      ['עיקרון', 'ממוצע', 'בתי ספר שמיפו', 'מינימום', 'מקסימום', 'נבחר כעוגן עוצמה', 'נבחר כיעד פריצה'],
+      (stats?.byPrinciple ?? []).map((p) => [
+        titleOf(p.principleId), p.average?.toFixed(2) ?? '', String(p.schools),
+        p.min?.toFixed(2) ?? '', p.max?.toFixed(2) ?? '',
+        String(p.strengthPicks), String(p.breakthroughPicks),
+      ]),
+    );
+
+  // Taken and untaken in one file, so a single sheet answers both halves of the panel.
+  const exportUptake = () => {
+    const takenBy = new Map((stats?.uptake ?? []).map((u) => [u.bankKey, u.schools]));
+    downloadCsv(
+      stampedName('אימוץ-פעילויות'),
+      ['פעילות', 'עיקרון', 'מקור', 'בתי ספר שלקחו', 'מצב'],
+      bankItems
+        .filter((i) => i.scope === 'municipal')
+        .map((i) => [
+          i.title,
+          principles.filter((p) => i.principles.includes(p.id)).map((p) => p.title).join(' · '),
+          i.source,
+          String(takenBy.get(i.key) ?? 0),
+          i.isActive ? 'פעילה' : 'מוסתרת',
+        ]),
+    );
+  };
+
   if (loading || !stats) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
@@ -97,9 +156,10 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
       <Panel
         icon="fa-solid fa-school-flag"
         title="מי עובד במערכת"
+        onExport={exportSchools}
         subtitle={`${started} מתוך ${totalSchools} בתי ספר התחילו לעבוד.`}
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 print:grid-cols-4">
           {STAGE_ORDER.map((stage) => {
             const st = STAGE_STYLE[stage];
             return (
@@ -115,9 +175,9 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
         </div>
 
         <div className="border border-slate-200 rounded-xl overflow-hidden">
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto print:max-h-none print:overflow-visible">
             <table className="w-full text-right">
-              <thead className="bg-slate-50 sticky top-0">
+              <thead className="bg-slate-50 sticky top-0 print:static">
                 <tr className="text-[11px] text-slate-500">
                   <th className="font-bold p-2.5">בית הספר</th>
                   <th className="font-bold p-2.5">סטטוס</th>
@@ -160,9 +220,10 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
       <Panel
         icon="fa-solid fa-chart-area"
         title="תמונת הבשלות העירונית"
+        onExport={exportMaturity}
         subtitle="ממוצע לכל עיקרון — מחושב רק על בתי ספר שמיפו אותו בפועל."
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start print:grid-cols-2">
           {Object.keys(cityScores).length ? (
             <RadarChart scores={cityScores} />
           ) : (
@@ -229,12 +290,13 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
       <Panel
         icon="fa-solid fa-arrow-trend-up"
         title="אילו פעילויות נלקחו מהבנק"
+        onExport={exportUptake}
         subtitle={`${stats.totalActivities} פעילויות בתוכניות, מתוכן ${stats.customActivities} יוזמות ייחודיות של בתי ספר.`}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 print:grid-cols-2">
           <div>
             <p className="text-[11px] font-bold text-slate-500 mb-2">הנבחרות ביותר</p>
-            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-64 overflow-y-auto">
+            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-64 overflow-y-auto print:max-h-none print:overflow-visible">
               {!uptakeNamed.taken.length && (
                 <p className="text-xs text-slate-400 text-center py-6">אף פעילות מהבנק לא נלקחה עדיין.</p>
               )}
@@ -260,7 +322,7 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
             <p className="text-[11px] font-bold text-slate-500 mb-2">
               אף אחד לא בחר ({uptakeNamed.untouched.length})
             </p>
-            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-64 overflow-y-auto">
+            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-64 overflow-y-auto print:max-h-none print:overflow-visible">
               {!uptakeNamed.untouched.length && (
                 <p className="text-xs text-slate-400 text-center py-6">כל פעילויות הבנק נלקחו לפחות פעם אחת.</p>
               )}

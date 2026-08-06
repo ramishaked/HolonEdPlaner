@@ -451,7 +451,10 @@ export default function App() {
   // no school settings, no planning zone — those are all school-scoped.
   if (viewerRole === 'city_admin' || viewerRole === 'super_admin') {
     return (
-      <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] font-sans p-4 md:p-8" style={{ direction: 'rtl' }}>
+      <div
+        className="min-h-screen bg-[#f8fafc] text-[#0f172a] font-sans p-4 md:p-8 print:p-0"
+        style={{ direction: 'rtl' }}
+      >
         <AdminArea
           viewer={{ userId: session.user.id, municipalityId: viewerMunicipalityId, role: viewerRole }}
           onExit={handleLogout}

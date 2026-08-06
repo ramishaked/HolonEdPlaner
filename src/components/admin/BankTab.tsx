@@ -5,6 +5,7 @@ import { type useActivityBank, type BankItem } from '../../lib/activityBank';
 import { moveBankItem, setActivityActive } from '../../lib/activityBankAdmin';
 import type { AdminViewer } from '../../lib/adminAuth';
 import { sourceMeta } from '../../planBank';
+import { downloadCsv, stampedName, NO_IMPORT_MARKER } from '../../lib/spreadsheet';
 import { ActivityWizard } from '../ActivityWizard';
 import { Section } from './AdminChrome';
 import { ConfirmDialog } from './fields';
@@ -69,6 +70,30 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
     return true;
   };
 
+  /**
+   * Exports exactly what is on screen, so "give me principle 4" costs no extra UI.
+   * The columns are the importer's columns — edit in Excel, import back, and matching
+   * rows update in place instead of duplicating.
+   */
+  const exportCsv = () => {
+    const municipal = filtered.filter((i) => i.scope === 'municipal');
+    downloadCsv(
+      stampedName('בנק-פעילויות'),
+      [
+        'מזהה', 'שם הפעולה', 'מטרת העל', 'הסבר קצר על הפעולה',
+        'מדדי הצלחה ויעדים', 'למי פונים ברשות', 'מקור', 'עיקרון',
+        `קהלי היעד ${NO_IMPORT_MARKER}`, `מצב ${NO_IMPORT_MARKER}`,
+      ],
+      municipal.map((i) => [
+        i.slug, i.title, i.short, i.description, i.metrics, i.contact, i.source,
+        principles.filter((p) => i.principles.includes(p.id)).map((p) => p.title).join(' · '),
+        audienceLabel(i.audiences, i.audienceNote, allAudiences),
+        i.isActive ? 'פעילה' : 'מוסתרת',
+      ]),
+    );
+    onNotice(`${municipal.length} פעילויות יוצאו לגיליון.`);
+  };
+
   const move = (item: BankItem, target: -1 | 1 | 'top') =>
     // `filtered` is the principle group in display order — exactly what the reorder
     // needs, which is why the controls only appear when that is true.
@@ -81,13 +106,23 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
         title="בנק הפעילויות העירוני"
         subtitle="הפעילויות שכל בתי הספר רואים במתחם התכנון."
         right={
-          <button
-            onClick={() => setWizardOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-primary-600 hover:opacity-90 transition-opacity shadow-sm cursor-pointer shrink-0"
-          >
-            <i className="fa-solid fa-wand-magic-sparkles" />
-            אשף הוספת פעילות
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={exportCsv}
+              title="ייצוא לגיליון (CSV)"
+              className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              <i className="fa-solid fa-file-arrow-down" />
+              ייצוא
+            </button>
+            <button
+              onClick={() => setWizardOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-primary-600 hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+            >
+              <i className="fa-solid fa-wand-magic-sparkles" />
+              אשף הוספת פעילות
+            </button>
+          </div>
         }
       >
         <div className="flex flex-wrap items-center gap-2">

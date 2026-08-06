@@ -99,6 +99,10 @@
 
 /* Printing optimization */
 @media print {
+  @page {
+    margin: 12mm;
+  }
+
   body {
     background: white !important;
     color: black !important;

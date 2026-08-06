@@ -78,6 +78,8 @@ export function parseSheet(text: string): ParsedSheet {
  * Matching is on normalized Hebrew/English header text, longest hint first.
  */
 export const FIELD_HINTS: Record<string, string[]> = {
+  // First, so the stable key wins before any looser title match.
+  slug: ['מזהה', 'slug', 'id'],
   title: ['שם הפעולה', 'שם הפעילות', 'שם', 'פעולה', 'פעילות', 'title', 'name'],
   short: ['מטרת העל', 'מטרה', 'תקציר', 'goal', 'purpose', 'short'],
   description: ['הסבר קצר על הפעולה', 'הסבר קצר', 'הסבר', 'תיאור', 'description', 'details'],
@@ -89,13 +91,25 @@ export const FIELD_HINTS: Record<string, string[]> = {
 
 const norm = (s: string) => s.replace(/[״"'׳]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
+/**
+ * Columns the export writes for the reader's benefit but which cannot be imported
+ * back — audiences are stored as slugs plus a free-text note, and the readable
+ * rendering cannot be reversed without guessing.
+ *
+ * The marker is explicit rather than relying on the header wording missing every
+ * hint: `FIELD_HINTS.audienceNote` includes the bare word "קהל", which every Hebrew
+ * phrasing of "audience" contains, so any wording would auto-map by accident.
+ */
+export const NO_IMPORT_MARKER = '(לא מיובא)';
+
 export function guessMapping(headers: string[]): Record<string, string> {
   const mapping: Record<string, string> = {};
   const taken = new Set<string>();
+  const importable = headers.filter((h) => !h.includes(NO_IMPORT_MARKER));
 
   for (const [field, hints] of Object.entries(FIELD_HINTS)) {
     for (const hint of hints) {
-      const match = headers.find(
+      const match = importable.find(
         (h) => !taken.has(h) && (norm(h) === norm(hint) || norm(h).includes(norm(hint))),
       );
       if (match) { mapping[field] = match; taken.add(match); break; }
@@ -104,3 +118,45 @@ export function guessMapping(headers: string[]): Record<string, string> {
 
   return mapping;
 }
+
+// ---- writing ----------------------------------------------------------------
+
+/** RFC-4180: quote when the cell holds a delimiter, a quote or a newline. */
+const csvCell = (value: string) =>
+  /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+
+/**
+ * Serialize to CSV. CRLF and comma because that is what Excel and Google Sheets both
+ * expect, and what `parseDelimited` reads back — one module owns both directions of
+ * the contract so a reader and writer can never disagree about quoting.
+ */
+export function serializeSheet(headers: string[], rows: string[][]): string {
+  return [headers, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+}
+
+/**
+ * Trigger a download. The BOM is not optional: Excel on Windows reads a BOM-less
+ * UTF-8 file as Windows-1255 and renders every Hebrew column as mojibake.
+ */
+export function downloadCsv(filename: string, headers: string[], rows: string[][]) {
+  const blob = new Blob(['﻿', serializeSheet(headers, rows)], {
+    type: 'text/csv;charset=utf-8',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * `בנק-פעילויות-2026-08-07.csv` — ISO shape so files sort chronologically, but built
+ * from local date parts: `toISOString()` is UTC and would stamp yesterday's date on
+ * an export taken late at night in Israel.
+ */
+export const stampedName = (base: string) => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${base}-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.csv`;
+};

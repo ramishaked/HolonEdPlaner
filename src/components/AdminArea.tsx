@@ -59,9 +59,20 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 print:hidden" dir="rtl">
+    <div className="max-w-5xl mx-auto space-y-6" dir="rtl">
+      {/* Printing this screen means printing the municipal dashboard — the header goes
+          light, the console furniture drops out, and the editing tabs never print. */}
+      <div className="hidden print:block border-b border-slate-300 pb-3 mb-4">
+        <h1 className="text-lg font-bold text-slate-900">
+          מסך מנהל המערכת · ניהול עירוני{municipality && ` — ${municipality}`}
+        </h1>
+        <p className="text-xs text-slate-500 mt-0.5">
+          הופק ב-{new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+      </div>
+
       {/* Deliberately unlike the school chrome — you are not in "my settings" here. */}
-      <div className="bg-slate-900 rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-slate-900 rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
         <div className="flex items-center gap-3">
           <span className="w-11 h-11 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-lg shrink-0">
             <i className="fa-solid fa-user-shield" />
@@ -89,27 +100,42 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
         </div>
       </div>
 
-      <TabBar tabs={TABS} active={tab} onSelect={selectTab} />
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <TabBar tabs={TABS} active={tab} onSelect={selectTab} />
+        {tab === 'dashboard' && (
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
+          >
+            <i className="fa-solid fa-print" />
+            הדפסה / PDF
+          </button>
+        )}
+      </div>
 
       {notice && <Notice text={notice} onClose={() => setNotice('')} />}
 
       {tab === 'dashboard' && <MunicipalDashboard bank={bankState} />}
-      {tab === 'bank' && (
-        <BankTab viewer={viewer} onNotice={setNotice} bank={bankState} audiences={audiencesState} />
-      )}
-      {tab === 'principles' && (
-        <PrinciplesTab viewer={viewer} onNotice={setNotice} bank={bankState} />
-      )}
-      {tab === 'audiences' && (
-        <AudiencesTab viewer={viewer} onNotice={setNotice} audiences={audiencesState} />
-      )}
-      {tab === 'schools' && <SchoolsTab onNotice={setNotice} />}
 
-      {tab !== 'dashboard' && (
-        <p className="text-[11px] text-slate-400 text-center pb-2">
-          טרם נבנה במסך זה: גרסאות תוכנית מרובות.
-        </p>
-      )}
+      {/* The editing consoles are working surfaces, not documents — they never print. */}
+      <div className="print:hidden">
+        {tab === 'bank' && (
+          <BankTab viewer={viewer} onNotice={setNotice} bank={bankState} audiences={audiencesState} />
+        )}
+        {tab === 'principles' && (
+          <PrinciplesTab viewer={viewer} onNotice={setNotice} bank={bankState} />
+        )}
+        {tab === 'audiences' && (
+          <AudiencesTab viewer={viewer} onNotice={setNotice} audiences={audiencesState} />
+        )}
+        {tab === 'schools' && <SchoolsTab onNotice={setNotice} />}
+
+        {tab !== 'dashboard' && (
+          <p className="text-[11px] text-slate-400 text-center pt-6 pb-2">
+            טרם נבנה במסך זה: גרסאות תוכנית מרובות.
+          </p>
+        )}
+      </div>
     </div>
   );
 };
