@@ -15,6 +15,7 @@ import {
   type DuplicateHit,
 } from '../lib/activityBankAdmin';
 import { guessMapping, parseSheet, type ParsedSheet } from '../lib/spreadsheet';
+import { Chip, Labeled, inputClass } from './admin/fields';
 import type { AdminViewer } from '../lib/adminAuth';
 import { SOURCE_META } from '../planBank';
 import type { TaskSource } from '../types';
@@ -36,37 +37,6 @@ type Mode = 'single' | 'bulk';
 const STEPS = ['פרטי הפעילות', 'שיוך לעקרונות ולקהל', 'מדדים ויישום', 'סיכום ושמירה'];
 
 // ---- small shared bits ------------------------------------------------------
-
-const Chip: React.FC<{ on: boolean; onClick: () => void; children: React.ReactNode }> = ({
-  on, onClick, children,
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-pressed={on}
-    className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
-      on
-        ? 'bg-primary-600 text-white border-primary-600'
-        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-    }`}
-  >
-    {children}
-  </button>
-);
-
-const Labeled: React.FC<{ label: string; hint?: string; children: React.ReactNode }> = ({
-  label, hint, children,
-}) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-xs font-bold text-slate-600">
-      {label} {hint && <span className="font-normal text-slate-400">{hint}</span>}
-    </label>
-    {children}
-  </div>
-);
-
-const inputClass =
-  'border border-slate-200 text-sm rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-primary-500 w-full';
 
 /** Advisory only — the goal is to inform, never to block the save. */
 const DuplicateWarning: React.FC<{ hits: DuplicateHit[] }> = ({ hits }) => {
