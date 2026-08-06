@@ -378,9 +378,20 @@ export const PlanView: React.FC<PlanViewProps> = ({
                   <i className="fa-solid fa-xmark text-lg"></i>
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                לחצו על כרטיס כדי <strong className="text-slate-700">לקרוא בהרחבה</strong>, או על <strong className="font-mono">+</strong> כדי להוסיף לתוכנית. הפעילויות שכבר בתוכנית יורדות מהרשימה.
-              </p>
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  לחצו על כרטיס כדי <strong className="text-slate-700">לקרוא בהרחבה</strong>, או על <strong className="font-mono">+</strong> כדי להוסיף לתוכנית. הפעילויות שכבר בתוכנית יורדות מהרשימה.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { addActivity({ title: 'יוזמה ייחודית / אחר', desc: '', type: 'אחר', source: 'בית ספרי' }); showBankToast('היוזמה נוספה לתוכנית — תוכלו לערוך אותה לאחר הסגירה'); }}
+                  title="הוסיפו משימה ייחודית של בית הספר שאינה מבנק הפעילויות העירוני. ניתן להוסיף כמה שתרצו."
+                  className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-3 py-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <i className="fa-solid fa-plus text-[10px]"></i>
+                  יוזמה ייחודית / אחר
+                </button>
+              </div>
 
               {!bankLoading && bankItems.length > 0 && (
                 <div className="mb-4 space-y-2.5">
@@ -427,40 +438,6 @@ export const PlanView: React.FC<PlanViewProps> = ({
                   )}
                 </div>
               )}
-
-              {/* משימה בית-ספרית ייחודית — נפרדת מהבנק העירוני, זמינה בכל עיקרון.
-                  מוצגת למעלה כדי שלא תיבלע מתחת לרשת הבנק. */}
-              {(() => {
-                const th = sourceMeta('בית ספרי');
-                return (
-                  <div className="mb-4 pb-4 border-b border-dashed border-slate-200">
-                    <p className="text-[11px] font-bold text-slate-400 mb-2 flex items-center gap-1.5">
-                      <i className="fa-solid fa-school text-[10px]" style={{ color: th.accent }}></i>
-                      משימה בית-ספרית
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => { addActivity({ title: 'יוזמה ייחודית / אחר', desc: '', type: 'אחר', source: 'בית ספרי' }); showBankToast('היוזמה נוספה לתוכנית — תוכלו לערוך אותה לאחר הסגירה'); }}
-                      className="w-full text-start border border-dashed rounded-xl p-3.5 transition-all cursor-pointer hover:shadow-sm"
-                      style={{ borderColor: th.accent, backgroundColor: `${th.accent}0d` }}
-                      title="הוספת יוזמה ייחודית לתוכנית"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <span className="font-bold text-slate-800 text-sm">יוזמה ייחודית / אחר</span>
-                        <span
-                          className="text-white rounded-lg w-7 h-7 flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: th.accent }}
-                        >
-                          <i className="fa-solid fa-plus text-xs"></i>
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        הוסיפו משימה ייחודית של בית הספר שאינה מבנק הפעילויות העירוני. ניתן להוסיף כמה שתרצו.
-                      </p>
-                    </button>
-                  </div>
-                );
-              })()}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {bankLoading && (
