@@ -22,6 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` — Vite build + esbuild bundle של השרת ל-`dist/server.cjs`.
 - `npm start` — מריץ את ה-build בפרוד (`node dist/server.cjs`).
 - מפתח AI: `GEMINI_API_KEY` ב-`.env.local` (ראה `.env.example`). האפליקציה עולה גם בלי המפתח — רק פיצ'רי ה-AI יחזירו 500 מנוסחת.
+- מפתח שרת: `SUPABASE_SERVICE_ROLE_KEY` ב-`.env.local` (**בלי** קידומת `VITE_` — אחרת Vite יארוז אותו ללקוח). בלעדיו כל האפליקציה עובדת חוץ מלשונית **בתי ספר** במסך הניהול, שתציג שגיאה מנוסחת. בפרוד יש להגדיר אותו ב-Vercel כמשתנה סביבה של Production.
 
 ## Architecture (התמונה הגדולה)
 
@@ -61,7 +62,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **מודל הענפים (מ-2026-08-06):** `main` הוא ה-Production Branch של Vercel — **מוקפא** על מה שרץ בפרוד (`holon-edplaner.vercel.app`, כרגע `67b2ae3`, מצב שלפני ה-DB). **לא מחייבים ולא דוחפים ל-`main` בשוטף.** כל עבודת Phase 2 חיה על ענף **`phase-2`** (נדחף ל-origin לגיבוי). דחיפה ל-`phase-2` בונה **preview בלבד** (`target: null`, מוגן ב-Vercel SSO, בלי DB) — לעולם לא נוגעת בפרוד.
 
 **איך עושים deploy לפרוד — רק באישור מפורש מהמשתמש:**
-1. Vercel → Project → Settings → Environment Variables (Production): להגדיר `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (anon/publishable בלבד — **לעולם לא** service_role). `GEMINI_API_KEY` כבר מוגדר ב-Production.
+1. Vercel → Project → Settings → Environment Variables (Production): להגדיר `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (anon/publishable בלבד — **לעולם לא** service_role תחת קידומת `VITE_`), וכן `SUPABASE_SERVICE_ROLE_KEY` **בלי** קידומת, לשימוש `api/admin/schools` בלבד. `GEMINI_API_KEY` כבר מוגדר ב-Production.
 2. לוודא שכל המיגרציות תחת `supabase/migrations/` הוחלו על פרויקט ה-Supabase שהפרוד מצביע אליו.
 3. `npm run lint` (tsc --noEmit) + `npm run build` נקיים; לעדכן `CHANGELOG.md`.
 4. למזג `phase-2 → main` ולדחוף עם טוקן הריליז: `ALLOW_PROD_DEPLOY=1 git push origin main` → Vercel עושה auto-deploy אחד לפרוד.
@@ -80,14 +81,18 @@ localStorage + ללא auth. הפרוד (`holon-edplaner.vercel.app`) עדיין 
 - Supabase מחובר בפיתוח: auth פר בית-ספר (דרופדאון + סיסמה, מאחורי הקלעים session סינתטי) + RLS מלא; פונקציות ההרשאה בסכימה פרטית `app`.
 - הגמילה מ-localStorage **הושלמה** — כל מידע דינמי ב-DB, כולל העקרונות ובנק הפעילויות.
 - **למנהל המערכת יש כניסה משלו.** ב-`Onboarding` יש מצב `admin` (קישור בתחתית) שמתחבר ל-`ADMIN_EMAIL` (`admin@holon.test`, בפיתוח סיסמה `9999`) על **אותו לקוח `supabase`** הראשי. `App` מנתב לפי `profiles.role`: `city_admin`/`super_admin` מקבלים את `AdminArea` **במקום כל המסע**, ו-bootstrap התוכנית מדולג להם (אין להם `school_id`). אין יותר לקוח Supabase שני.
-- **`AdminArea`** = מעטפת בלבד (הדר, לשוניות, באנר הודעות) עם **ארבע לשוניות** ב-`src/components/admin/`: `MunicipalDashboard` (ברירת מחדל) · `BankTab` (חיפוש/יצירה/עריכה/מחיקה, פותח `ActivityWizard` גם במצב `editing`) · `PrinciplesTab` (סדר, הסתרה/החזרה, ופתיחת `PrincipleEditor`) · `AudiencesTab`. שכבת ה-chrome וה-form primitives משותפות ב-`admin/AdminChrome.tsx` ו-`admin/fields.tsx`.
+- **`AdminArea`** = מעטפת בלבד (הדר, לשוניות, באנר הודעות) עם **חמש לשוניות** ב-`src/components/admin/`: `MunicipalDashboard` (ברירת מחדל) · `BankTab` (חיפוש/יצירה/עריכה/מחיקה, פותח `ActivityWizard` גם במצב `editing`) · `PrinciplesTab` (סדר, הסתרה/החזרה, ופתיחת `PrincipleEditor`) · `AudiencesTab` · `SchoolsTab`. שכבת ה-chrome וה-form primitives משותפות ב-`admin/AdminChrome.tsx` ו-`admin/fields.tsx`.
+- **`SchoolsTab` הוא היחיד שלא כותב ישירות ל-Supabase** — ראה "ניהול בתי ספר" למטה.
 - `useActivityBank()`/`useAudiences()` מוחזקים **ב-`AdminArea`** ומועברים ללשוניות, כדי שמוני הכותרת והלשוניות יראו עותק אחד.
 - **אין מחיקה קשה של עיקרון** — `plan_*` ו-`activity_bank_item_principles` תלויים ב-`principles(id)` עם `on delete cascade`. הסתרה = `is_active=false` + חניה ב-`order_index` 90+ ומספור מחדש של הנותרים (מוסכמת `20260805090000`).
 - **`SettingsView` הוא רק של בית הספר** — אין בו שום דלת ניהול.
 - **נוסחת הציון ב-`src/lib/scoring.ts` בלבד.** `scoresFor` נותן 1.0 לעיקרון שלא מופה — זו נוחות תצוגה לרדאר ו**אסור** לממצע אותה בין בתי ספר. לאגרגציה יש `mappedScores`, והדשבורד מציג תמיד את מספר בתי הספר שמאחורי כל ממוצע.
 - **בית ספר לא כותב לבנק.** הנתיב היחיד שלו הוא "יוזמה ייחודית / אחר" ב-`PlanView`, שמוסיף לתוכנית בית הספר. ה-RLS אוכף את זה — לא רק ה-UI.
-- **טרם נבנה:** הוספה/השבתה של בתי ספר ואיפוס סיסמאות, ו-UI לגרסאות תוכנית (`plans` + `schools.current_plan_id` כבר קיימים).
-  בתי ספר וסיסמאות דורשים נתיב צד-שרת: `schools`/`profiles` ניתנים לכתיבה ל-`super_admin` בלבד (ואין חשבון כזה), והכניסה חיה ב-`auth.users` של GoTrue — כלומר `service_role` מאחורי `api/admin/*` בדפוס של `api/ai/*`, שמאמת את ה-JWT של הקורא בצד השרת. מחיקת בית ספר תמומש כ**השבתה** בלבד.
+- **ניהול בתי ספר — הנתיב היחיד שעובר דרך השרת.** `public.schools` ניתן לכתיבה ל-`super_admin` בלבד (ואין חשבון כזה), והכניסה חיה ב-`auth.users` שאינו חשוף ב-PostgREST. לכן הוספה/שינוי שם/השבתה/איפוס סיסמה עוברים ב-`api/_lib/admin.ts` עם `SUPABASE_SERVICE_ROLE_KEY` (env צד-שרת, **בלי** קידומת `VITE_`), בדפוס של `api/ai/*`: לוגיקה ב-`_lib`, עטיפה דקה ב-`api/admin/schools.ts` (prod) וב-`server.ts` (dev). השרת **לא סומך על הלקוח**: הוא מאמת את ה-JWT מול GoTrue, קורא את `profiles.role` בעצמו, ומגביל כל פעולה לרשות של אותו מנהל.
+  - **סיסמאות:** האפליקציה מגדירה את הכלל (4+ תווים), לא GoTrue. יצירת המשתמש עוברת ב-`auth.admin.createUser` (כדי שכל עמודות ה-auth הפנימיות ייכתבו נכון), ומיד אחריה `public.admin_set_school_password()` קובע את הקוד הקצר. הפונקציה `security definer` ומוענקת ל-`service_role` בלבד, ומוגבלת לפרופילים בתפקיד `school`.
+  - **מחיקת בית ספר = השבתה בלבד** (`schools.is_active=false` + ban על משתמש ה-auth). `plans`, `plan_*`, `school_files` ו-`profiles` כולם cascade מ-`schools`.
+  - `schoolEmail()` ב-`api/_lib/schoolIdentity.ts` — **מקור אמת יחיד** לכתובת הסינתטית, משותף ל-`Onboarding` ולשרת. שתי גרסאות שנסחפות = אף אחד לא נכנס.
+- **טרם נבנה:** UI לגרסאות תוכנית (`plans` + `schools.current_plan_id` כבר קיימים).
 
 ## כללים קשיחים
 - **מפתח AI לעולם לא בצד הלקוח.** היועץ רץ רק דרך `api/_lib/ai.ts` עם env var.

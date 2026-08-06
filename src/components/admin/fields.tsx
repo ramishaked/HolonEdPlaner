@@ -127,10 +127,12 @@ export const ConfirmDialog: React.FC<{
   confirmLabel: string;
   tone?: 'danger' | 'neutral';
   busy?: boolean;
+  /** For a dialog that only acknowledges something — "cancel" would be meaningless. */
+  hideCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   children: React.ReactNode;
-}> = ({ title, confirmLabel, tone = 'danger', busy, onConfirm, onCancel, children }) => (
+}> = ({ title, confirmLabel, tone = 'danger', busy, hideCancel, onConfirm, onCancel, children }) => (
   <div
     className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     onClick={onCancel}
@@ -143,12 +145,14 @@ export const ConfirmDialog: React.FC<{
       <h3 className="text-base font-bold text-slate-900">{title}</h3>
       <div className="text-xs text-slate-600 leading-relaxed space-y-2">{children}</div>
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
-        >
-          ביטול
-        </button>
+        {!hideCancel && (
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+          >
+            ביטול
+          </button>
+        )}
         <button
           onClick={onConfirm}
           disabled={busy}

@@ -8,6 +8,7 @@ import { Notice, Stat, TabBar, type TabDef } from './admin/AdminChrome';
 import { BankTab } from './admin/BankTab';
 import { PrinciplesTab } from './admin/PrinciplesTab';
 import { AudiencesTab } from './admin/AudiencesTab';
+import { SchoolsTab } from './admin/SchoolsTab';
 
 interface Props {
   viewer: AdminViewer;
@@ -25,13 +26,14 @@ interface Props {
  * owns its own data and writes.
  */
 
-type Tab = 'dashboard' | 'bank' | 'principles' | 'audiences';
+type Tab = 'dashboard' | 'bank' | 'principles' | 'audiences' | 'schools';
 
 const TABS: readonly TabDef<Tab>[] = [
   { key: 'dashboard', icon: 'fa-solid fa-chart-line', label: 'דשבורד עירוני' },
   { key: 'bank', icon: 'fa-solid fa-layer-group', label: 'בנק הפעילויות' },
   { key: 'principles', icon: 'fa-solid fa-list-check', label: 'עקרונות' },
   { key: 'audiences', icon: 'fa-solid fa-users', label: 'קהלי יעד' },
+  { key: 'schools', icon: 'fa-solid fa-school', label: 'בתי ספר' },
 ];
 
 export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
@@ -96,10 +98,11 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
       {tab === 'audiences' && (
         <AudiencesTab viewer={viewer} onNotice={setNotice} audiences={audiencesState} />
       )}
+      {tab === 'schools' && <SchoolsTab onNotice={setNotice} />}
 
       {tab !== 'dashboard' && (
         <p className="text-[11px] text-slate-400 text-center pb-2">
-          טרם נבנה במסך זה: הוספה והשבתה של בתי ספר, איפוס סיסמאות, וגרסאות תוכנית.
+          טרם נבנה במסך זה: גרסאות תוכנית מרובות.
         </p>
       )}
     </div>

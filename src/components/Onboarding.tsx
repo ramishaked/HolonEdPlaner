@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { ADMIN_EMAIL } from '../lib/adminAuth';
+import { schoolEmail } from '../../api/_lib/schoolIdentity';
 import { Button } from './ui/Button';
 
 interface SchoolOption {
   id: string;
   name: string;
 }
-
-/** Synthetic login email for a school (never shown to the user). */
-const schoolEmail = (schoolId: string) => `${schoolId}@schools.holon.test`;
 
 /**
  * Step 1 — login. Simple UX: pick your school + type a short password (default
