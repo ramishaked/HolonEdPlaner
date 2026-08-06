@@ -36,8 +36,10 @@ const TABS: readonly TabDef<Tab>[] = [
 
 export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
   const { principles } = usePrinciples();
-  const { audiences } = useAudiences();
-  const { all: bankItems } = useActivityBank();
+  // Held here, not per tab: the header counters and the tabs must see the same data,
+  // and a write in one tab has to refresh the counters above it.
+  const audiencesState = useAudiences();
+  const bankState = useActivityBank();
 
   // The dashboard is the landing view: an admin arrives asking "what's going on",
   // not "let me edit the bank".
@@ -67,9 +69,9 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Stat value={bankItems.length} label="פעילויות" />
+          <Stat value={bankState.all.length} label="פעילויות" />
           <Stat value={principles.length} label="עקרונות" />
-          <Stat value={audiences.length} label="קהלי יעד" />
+          <Stat value={audiencesState.audiences.length} label="קהלי יעד" />
           <button
             onClick={onExit}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 transition-colors cursor-pointer mr-2"
@@ -85,9 +87,13 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
       {notice && <Notice text={notice} onClose={() => setNotice('')} />}
 
       {tab === 'dashboard' && <MunicipalDashboard />}
-      {tab === 'bank' && <BankTab viewer={viewer} onNotice={setNotice} />}
-      {tab === 'principles' && <PrinciplesTab />}
-      {tab === 'audiences' && <AudiencesTab />}
+      {tab === 'bank' && (
+        <BankTab viewer={viewer} onNotice={setNotice} bank={bankState} audiences={audiencesState} />
+      )}
+      {tab === 'principles' && <PrinciplesTab bank={bankState} />}
+      {tab === 'audiences' && (
+        <AudiencesTab viewer={viewer} onNotice={setNotice} audiences={audiencesState} />
+      )}
 
       {tab !== 'dashboard' && (
         <p className="text-[11px] text-slate-400 text-center pb-2">

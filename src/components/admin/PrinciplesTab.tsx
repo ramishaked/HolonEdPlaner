@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePrinciples } from '../../lib/PrinciplesContext';
-import { useActivityBank } from '../../lib/activityBank';
+import { type useActivityBank } from '../../lib/activityBank';
 import { Section } from './AdminChrome';
 
 /**
@@ -12,9 +12,11 @@ import { Section } from './AdminChrome';
  * shows only active principles. The canonical order and titles still come from
  * `usePrinciples()`, which is what the shared-menu rule is actually protecting.
  */
-export const PrinciplesTab: React.FC = () => {
+export const PrinciplesTab: React.FC<{ bank: ReturnType<typeof useActivityBank> }> = ({
+  bank: bankState,
+}) => {
   const { principles } = usePrinciples();
-  const { bank } = useActivityBank();
+  const { bank } = bankState;
 
   return (
     <Section

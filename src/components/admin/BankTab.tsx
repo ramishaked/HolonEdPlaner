@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { usePrinciples } from '../../lib/PrinciplesContext';
-import { audienceLabel, useAudiences } from '../../lib/audiences';
-import { useActivityBank, type BankItem } from '../../lib/activityBank';
+import { audienceLabel, type useAudiences } from '../../lib/audiences';
+import { type useActivityBank, type BankItem } from '../../lib/activityBank';
 import { deleteActivity } from '../../lib/activityBankAdmin';
 import type { AdminViewer } from '../../lib/adminAuth';
 import { sourceMeta } from '../../planBank';
@@ -12,6 +12,9 @@ import { ConfirmDialog } from './fields';
 interface Props {
   viewer: AdminViewer;
   onNotice: (text: string) => void;
+  /** Held by AdminArea so the header counters and every tab share one copy. */
+  bank: ReturnType<typeof useActivityBank>;
+  audiences: ReturnType<typeof useAudiences>;
 }
 
 /**
@@ -20,10 +23,10 @@ interface Props {
  * A school's own activities are listed for oversight but never editable here — RLS
  * would reject the write, so the UI doesn't offer a doomed action.
  */
-export const BankTab: React.FC<Props> = ({ viewer, onNotice }) => {
+export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, audiences }) => {
   const { principles } = usePrinciples();
-  const { all: allAudiences } = useAudiences();
-  const { bank, all: bankItems, loading, reload } = useActivityBank();
+  const { all: allAudiences } = audiences;
+  const { bank, all: bankItems, loading, reload } = bankState;
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editing, setEditing] = useState<BankItem | null>(null);
