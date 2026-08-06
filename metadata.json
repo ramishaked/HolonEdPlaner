@@ -1,5 +1,5 @@
 {
-  "name": "מדריך שבעת העקרונות של מנהל החינוך",
+  "name": "הפלנר — מדריך עקרונות מנהל החינוך",
   "description": "ערכת כלים אינטראקטיבית למנהלים לכתיבת תוכנית עבודה שנתית מבוססת עקרונות ואבחון דיגיטלי",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

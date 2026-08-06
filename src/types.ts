@@ -18,6 +18,7 @@ export interface Principle {
   studentDeliverable: string;
   firstStep: string;
   sources: Source[];
+  shortLabel?: string; // short radar label (from DB short_label); optional for static data
 }
 
 export interface Source {
@@ -60,11 +61,17 @@ export interface PlanActivity {
   title: string;
   desc: string;
   metrics: string;
-  target: 'all' | 'layers' | 'teachers';
+  /** Audience slugs from the DB `audiences` picklist — multi-select, never hardcoded. */
+  audiences: string[];
+  /** Free text shown when the "אחר" audience is picked, or to qualify a broad one. */
+  audienceNote: string;
   owner: string;
   priority: 'high' | 'medium' | 'low';
   type: string; // internal category (drives metrics + victory-vision heuristics; not displayed)
   source?: TaskSource; // displayed chip — task origin. Optional for back-compat with older saved plans.
+  /** Source bank item id (BankItem.key) when this activity was added from the bank.
+   *  Undefined for a custom "יוזמה ייחודית / אחר". Powers the bank's "already in plan" state. */
+  bankKey?: string;
   isExpanded?: boolean; // workspace accordion open/closed state
 }
 
@@ -89,6 +96,8 @@ export interface SchoolFileMeta {
   name: string;
   size: number; // bytes
   type: string; // mime
+  id?: string; // school_files row id (DB-backed uploads)
+  path?: string; // Supabase Storage object path
 }
 
 export interface SchoolProfile {

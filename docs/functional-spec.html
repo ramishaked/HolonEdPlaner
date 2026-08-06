@@ -1,0 +1,525 @@
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --ink: #0f172a;
+    --muted: #52607a;
+    --faint: #8592a8;
+    --border: #e4e8f0;
+    --border-strong: #cfd6e4;
+    --accent: #2458d8;
+    --accent-soft: #eaf0fe;
+    --good: #0f7a52;
+    --good-soft: #e3f5ec;
+    --warn: #9a6410;
+    --warn-soft: #fbf0dc;
+    --todo: #5b6577;
+    --todo-soft: #eef1f6;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -16px rgba(15, 23, 42, .22);
+    --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", "Arial Hebrew", "Noto Sans Hebrew", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120;
+      --surface: #131b2e;
+      --surface-2: #0f1728;
+      --ink: #e7ecf5;
+      --muted: #a2adc2;
+      --faint: #74809a;
+      --border: #26314a;
+      --border-strong: #33405c;
+      --accent: #6f9bff;
+      --accent-soft: #182747;
+      --good: #4fc48d;
+      --good-soft: #12291f;
+      --warn: #e0ab5b;
+      --warn-soft: #2c2413;
+      --todo: #9aa5ba;
+      --todo-soft: #1a2135;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 30px -18px rgba(0, 0, 0, .7);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6fb; --surface: #ffffff; --surface-2: #f8fafc; --ink: #0f172a;
+    --muted: #52607a; --faint: #8592a8; --border: #e4e8f0; --border-strong: #cfd6e4;
+    --accent: #2458d8; --accent-soft: #eaf0fe; --good: #0f7a52; --good-soft: #e3f5ec;
+    --warn: #9a6410; --warn-soft: #fbf0dc; --todo: #5b6577; --todo-soft: #eef1f6;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -16px rgba(15, 23, 42, .22);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1120; --surface: #131b2e; --surface-2: #0f1728; --ink: #e7ecf5;
+    --muted: #a2adc2; --faint: #74809a; --border: #26314a; --border-strong: #33405c;
+    --accent: #6f9bff; --accent-soft: #182747; --good: #4fc48d; --good-soft: #12291f;
+    --warn: #e0ab5b; --warn-soft: #2c2413; --todo: #9aa5ba; --todo-soft: #1a2135;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 30px -18px rgba(0, 0, 0, .7);
+  }
+
+  .doc * { box-sizing: border-box; }
+  .doc {
+    direction: rtl;
+    text-align: right;
+    font-family: var(--font);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.75;
+    font-size: 16.5px;
+    -webkit-font-smoothing: antialiased;
+    padding: clamp(1rem, 4vw, 3rem) 1rem 4rem;
+    min-height: 100%;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+
+  .doc p { margin: 0 0 .85em; }
+  .doc a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  .doc a:hover { border-bottom-color: currentColor; }
+  .doc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+  .doc strong { font-weight: 700; color: var(--ink); }
+
+  /* ---- masthead ---- */
+  .mast {
+    background:
+      radial-gradient(120% 140% at 100% 0%, var(--accent-soft) 0%, transparent 55%),
+      var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: clamp(1.4rem, 4vw, 2.4rem);
+    box-shadow: var(--shadow);
+    margin-bottom: 1.4rem;
+  }
+  .kicker {
+    font-size: .74rem; font-weight: 800; letter-spacing: .04em;
+    color: var(--accent); margin: 0 0 .5rem;
+  }
+  .mast h1 {
+    font-size: clamp(1.7rem, 4.4vw, 2.5rem);
+    line-height: 1.15; font-weight: 800; margin: 0;
+    text-wrap: balance; letter-spacing: -.01em;
+  }
+  .mast h1 .en { color: var(--faint); font-weight: 600; font-size: .58em; }
+  .mast .sub { color: var(--muted); font-size: 1.02rem; margin: .7rem 0 0; max-width: 60ch; }
+  .badges { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.15rem; }
+  .badge {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-size: .76rem; font-weight: 700;
+    padding: .32rem .7rem; border-radius: 999px;
+    border: 1px solid var(--border-strong); color: var(--muted); background: var(--surface-2);
+  }
+  .badge.live { color: var(--good); background: var(--good-soft); border-color: transparent; }
+  .badge .dot { width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
+  .badge .mono { font-family: var(--mono); font-size: .95em; }
+
+  /* ---- role note: three docs ---- */
+  .rolenote {
+    display: grid; gap: .1rem; margin-top: 1.2rem; padding-top: 1.15rem;
+    border-top: 1px dashed var(--border-strong); color: var(--muted); font-size: .9rem;
+  }
+  .rolenote b { color: var(--ink); }
+
+  /* ---- generic panel ---- */
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: clamp(1.15rem, 3vw, 1.75rem);
+    box-shadow: var(--shadow); margin-bottom: 1.15rem;
+  }
+  .lead-h { font-size: 1.05rem; font-weight: 800; margin: 0 0 .6rem; }
+
+  /* ---- tables ---- */
+  .twrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; min-width: 460px; }
+  th, td { text-align: right; padding: .62rem .8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  thead th { background: var(--surface-2); font-weight: 800; color: var(--muted); font-size: .8rem; }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  /* ---- flow ---- */
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .3rem 0 .2rem; }
+  .flow .node {
+    font-weight: 700; font-size: .9rem; padding: .4rem .8rem; border-radius: 10px;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid transparent; white-space: nowrap;
+  }
+  .flow .arw { color: var(--faint); font-weight: 800; }
+  .flow .aside { font-size: .85rem; color: var(--faint); }
+
+  /* ---- section ---- */
+  section.zone { scroll-margin-top: 1rem; margin-bottom: 1.15rem; }
+  .zhead { display: flex; align-items: center; gap: .75rem; margin: 2.2rem 0 .2rem; }
+  .znum {
+    flex: 0 0 auto; width: 2rem; height: 2rem; border-radius: 9px;
+    display: grid; place-items: center; font-weight: 800; font-size: .95rem;
+    background: var(--accent); color: #fff; font-family: var(--mono);
+  }
+  .zhead h2 {
+    margin: 0; font-size: clamp(1.2rem, 3vw, 1.5rem); font-weight: 800; letter-spacing: -.01em;
+  }
+  .divider {
+    display: flex; align-items: center; gap: .8rem; margin: 2.6rem 0 .4rem; color: var(--faint);
+    font-size: .8rem; font-weight: 700; letter-spacing: .03em;
+  }
+  .divider::before, .divider::after { content: ""; height: 1px; background: var(--border-strong); flex: 1; }
+
+  /* labelled blocks inside a zone */
+  .block { margin-top: .9rem; }
+  .lbl {
+    font-size: .74rem; font-weight: 800; letter-spacing: .02em; color: var(--accent);
+    margin: 0 0 .3rem; display: inline-block;
+  }
+  .lbl.warnlbl { color: var(--warn); }
+  .doc ul, .doc ol { margin: .1rem 0 .3rem; padding-inline-start: 1.25rem; }
+  .doc li { margin: .28em 0; }
+  .doc li::marker { color: var(--faint); }
+
+  /* callout */
+  .callout {
+    border: 1px solid var(--border); border-right: 4px solid var(--accent);
+    background: var(--surface-2); border-radius: 12px; padding: 1rem 1.15rem; margin: 1rem 0;
+  }
+  .callout.good { border-right-color: var(--good); }
+  .formula {
+    font-family: var(--mono); font-size: 1rem; font-weight: 700; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: .75rem 1rem; margin: .6rem 0; display: block; overflow-x: auto; white-space: nowrap;
+  }
+
+  /* status chips */
+  .chip {
+    display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap;
+    font-size: .76rem; font-weight: 800; padding: .2rem .6rem; border-radius: 999px;
+  }
+  .chip.demo { color: var(--warn); background: var(--warn-soft); }
+  .chip.todo { color: var(--todo); background: var(--todo-soft); }
+  .chip .dot { width: .45rem; height: .45rem; border-radius: 50%; background: currentColor; }
+
+  /* TOC */
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.1rem 1.35rem; box-shadow: var(--shadow); margin-bottom: 1.15rem; }
+  .toc h2 { font-size: .8rem; letter-spacing: .04em; color: var(--faint); font-weight: 800; margin: 0 0 .7rem; }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .35rem .9rem; }
+  .toc li { margin: 0; }
+  .toc a { display: flex; gap: .55rem; align-items: baseline; font-size: .9rem; font-weight: 600; color: var(--ink); padding: .2rem 0; }
+  .toc a .n { font-family: var(--mono); font-size: .78rem; color: var(--accent); font-weight: 800; min-width: 1.3rem; }
+  .toc a:hover { border-bottom-color: transparent; color: var(--accent); }
+
+  .footnote { color: var(--faint); font-size: .82rem; text-align: center; margin-top: 2rem; }
+
+  @media (max-width: 520px) { .doc { font-size: 16px; } .znum { width: 1.7rem; height: 1.7rem; } }
+  @media (prefers-reduced-motion: no-preference) { .doc a, .toc a { transition: color .15s ease; } }
+</style>
+
+<main class="doc">
+  <div class="wrap">
+
+    <header class="mast">
+      <p class="kicker">אפיון פונקציונלי · מסמך חי</p>
+      <h1>הפלנר <span class="en">Holon School Educational Planner</span></h1>
+      <p class="sub">מה המערכת עושה עכשיו — בשפה פשוטה, לפי מתחם. עוזר דיגיטלי למנהלי בתי הספר של חולון לבניית תוכנית עבודה שנתית.</p>
+      <div class="badges">
+        <span class="badge live"><span class="dot"></span>מסמך חי · מתעדכן עם כל שינוי</span>
+        <span class="badge">מסונכרן לקוד: אוגוסט 2026</span>
+        <span class="badge"><span class="mono">v0.1.9</span></span>
+      </div>
+      <div class="rolenote">
+        <span>מסמך זה עונה על שאלה אחת: <b>מה המערכת עושה</b>.</span>
+        <span>כיצד היא בנויה מתועד ב־<b>CLAUDE.md</b> · מה השתנה ומתי — ב־<b>CHANGELOG.md</b>.</span>
+      </div>
+    </header>
+
+    <!-- intro -->
+    <div class="panel">
+      <p class="lead-h">שני סוגי משתמשים</p>
+      <div class="twrap">
+        <table>
+          <thead>
+            <tr><th>משתמש</th><th>מי זה</th><th>מה הוא רואה</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>בית ספר</strong> (מנהל/ת)</td>
+              <td>43 בתי הספר של חולון, כל אחד עם כניסה משלו</td>
+              <td>את כל <strong>המסע הבית-ספרי</strong> + הגדרות בית הספר</td>
+            </tr>
+            <tr>
+              <td><strong>מנהל/ת המערכת</strong> (עירוני)</td>
+              <td>גורם עירוני אחד</td>
+              <td><strong>רק</strong> את אזור הניהול העירוני — בלי מסע, בלי הגדרות בית ספר</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:1rem">הנתונים של כל בית ספר <strong>פרטיים לו בלבד</strong>. משתמש אחד לעולם לא רואה את נתוני האחר.</p>
+
+      <p class="lead-h" style="margin-top:1.4rem">מסע המשתמש הבית-ספרי</p>
+      <div class="flow">
+        <span class="node">כניסה</span><span class="arw">←</span>
+        <span class="node">הכרות</span><span class="arw">←</span>
+        <span class="node">אבחון</span><span class="arw">←</span>
+        <span class="node">תכנון</span><span class="arw">←</span>
+        <span class="node">הפקה</span>
+        <span class="aside">· והגדרות מחוץ למסע</span>
+      </div>
+
+      <p class="lead-h" style="margin-top:1.4rem">חמשת העקרונות</p>
+      <p style="margin:0">האבחון והתכנון סובבים סביב <strong>חמשת עקרונות הניהול החינוכי</strong> של מינהל החינוך בחולון (בית ספר עם עיקרון ייחודי משלו יראה יותר). כל עיקרון הוא ציר שמודדים בו בשלות ובונים סביבו פעילויות. השמות והסדר אחידים בכל המסכים.</p>
+    </div>
+
+    <!-- TOC -->
+    <nav class="toc" aria-label="תוכן עניינים">
+      <h2>המתחמים</h2>
+      <ol>
+        <li><a href="#z1"><span class="n">1</span><span>כניסה למערכת</span></a></li>
+        <li><a href="#z2"><span class="n">2</span><span>מתחם ההכרות</span></a></li>
+        <li><a href="#z3"><span class="n">3</span><span>מתחם האבחון העצמי</span></a></li>
+        <li><a href="#z4"><span class="n">4</span><span>מתחם התכנון</span></a></li>
+        <li><a href="#z5"><span class="n">5</span><span>מתחם ההפקה</span></a></li>
+        <li><a href="#z6"><span class="n">6</span><span>הגדרות בית ספר</span></a></li>
+        <li><a href="#z7"><span class="n">7</span><span>אזור הניהול העירוני</span></a></li>
+        <li><a href="#data"><span class="n">·</span><span>נתונים, פרטיות והרשאות</span></a></li>
+        <li><a href="#score"><span class="n">·</span><span>איך מחושב הציון</span></a></li>
+        <li><a href="#demo"><span class="n">·</span><span>מה עדיין הדגמה</span></a></li>
+      </ol>
+    </nav>
+
+    <!-- 1 -->
+    <section class="zone" id="z1">
+      <div class="zhead"><span class="znum">1</span><h2>כניסה למערכת</h2></div>
+      <div class="panel">
+        <div class="block"><span class="lbl">מה זה</span><p style="margin:0">שער הכניסה. אין הרשמה ואין דוא"ל — בוחרים בית ספר ומקלידים סיסמה.</p></div>
+        <div class="block">
+          <span class="lbl">מה עושים כאן</span>
+          <ul>
+            <li><strong>בית ספר:</strong> בוחר את שמו מרשימה נפתחת של כל בתי הספר, ומקליד סיסמה קצרה.</li>
+            <li><strong>מנהל/ת המערכת:</strong> לוחץ על קישור דיסקרטי בתחתית ("כניסת מנהל מערכת"), שמחליף למסך כניסה כהה עם סיסמה בלבד.</li>
+          </ul>
+        </div>
+        <div class="block">
+          <span class="lbl">כללים והתנהגויות</span>
+          <ul>
+            <li>אחרי כניסה מוצלחת המערכת מזהה לבד את סוג המשתמש ומנתבת אותו — בית ספר למסע, מנהל מערכת לאזור הניהול.</li>
+            <li>סיסמה שגויה מציגה הודעה ברורה; אפשר ללחוץ Enter לכניסה.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="zone" id="z2">
+      <div class="zhead"><span class="znum">2</span><h2>מתחם ההכרות</h2></div>
+      <div class="panel">
+        <div class="block"><span class="lbl">מה זה</span><p style="margin:0">מרחב הלמידה. כאן מבינים את הרקע, לומדים כל עיקרון לעומק, ומקבלים את פרוטוקול הסדנה המוסדית — לפני שממלאים משהו.</p></div>
+        <div class="block">
+          <span class="lbl">מה עושים כאן</span>
+          <ul>
+            <li>קוראים דף פתיחה שמסביר מהי ערכת הכלים, איך נוצרה, ומה יש בה.</li>
+            <li>בוחרים עיקרון מהתפריט וצוללים לדף הסבר מלא שלו (הרציונל, הפערים, אסטרטגיית היישום, השותפויות, התוצרים המצופים ומקורות העמקה).</li>
+            <li>פותחים את <strong>מהלך הסדנה המוסדית — 90 דקות</strong>: מדריך מובנה להנחיית דיון הנהלה שממנו נגזרת התוכנית.</li>
+          </ul>
+        </div>
+        <div class="block">
+          <span class="lbl">כללים והתנהגויות</span>
+          <ul>
+            <li>מכל מסך אחר במערכת אפשר לקפוץ ישירות לדף ההסבר של עיקרון ("עוד על העקרון").</li>
+            <li>הסדנה מוצגת מכווצת כברירת מחדל, כדי שדף הפתיחה יישאר קצר וקריא.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="zone" id="z3">
+      <div class="zhead"><span class="znum">3</span><h2>מתחם האבחון העצמי</h2></div>
+      <div class="panel">
+        <div class="block"><span class="lbl">מה זה</span><p style="margin:0">הלב של המערכת — כאן בית הספר מדרג את רמת הבשלות שלו בכל עיקרון, ומקבל <strong>מפת עכביש (רדאר)</strong> שמתעדכנת בזמן אמת.</p></div>
+        <div class="block">
+          <span class="lbl">מה עושים כאן, לכל עיקרון</span>
+          <ol>
+            <li>בוחרים <strong>רמת בשלות</strong> מתוך ארבע רמות (רובריקה מדורגת). לכל רמה תיאור מלא שמופיע במעבר עכבר.</li>
+            <li>מדרגים את <strong>שלושת צירי "מעגל הזהב"</strong> בסולם 1–4: <strong>הלמה</strong> (תרבות), <strong>האיך</strong> (סדירויות במערכת השעות), <strong>המה</strong> (תוצרים מדידים).</li>
+            <li>כותבים <strong>הערכה מילולית</strong> חופשית — ראיות, נתונים, דברים שעלו בדיון.</li>
+          </ol>
+        </div>
+        <div class="block">
+          <span class="lbl">כללים והתנהגויות</span>
+          <ul>
+            <li>מפת העכביש מוצגת לצד הדירוג ומתעדכנת מיד עם כל שינוי. אפשר גם ללחוץ על קודקוד במפה כדי לעבור לעיקרון.</li>
+            <li>כניסת "מה קורה כאן?" בתפריט מציגה הסבר על המתחם.</li>
+            <li>עיקרון שטרם דורג מופיע במפה כמלא (ברירת מחדל ויזואלית) — ראו <a href="#score">איך מחושב הציון</a>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="zone" id="z4">
+      <div class="zhead"><span class="znum">4</span><h2>מתחם התכנון</h2></div>
+      <div class="panel">
+        <div class="block"><span class="lbl">מה זה</span><p style="margin:0">סדנת העבודה. לכל עיקרון בונים תוכנית פעולות — בוחרים מתוך <strong>בנק פעילויות עירוני</strong> מוכן, או מוסיפים יוזמה ייחודית משלכם.</p></div>
+        <div class="block">
+          <span class="lbl">מה עושים כאן</span>
+          <ul>
+            <li>פותחים את <strong>בנק הפעילויות</strong> (חלון קופץ): מחפשים לפי שם, מסננים לפי קהל יעד, ולוחצים על כרטיס לקריאה מלאה או על "+" כדי להוסיף לתוכנית.</li>
+            <li>כל פעילות הופכת ל<strong>כרטיס בתוכנית</strong> שאפשר לערוך: שם, הסבר, אחראי יישום, מדדי הצלחה, עדיפות וקהל יעד.</li>
+            <li>מוסיפים <strong>"יוזמה ייחודית / אחר"</strong> — משימה בית-ספרית משלכם שאינה מהבנק. אפשר כמה שרוצים.</li>
+            <li>מנסחים <strong>"תמונת ניצחון"</strong> לכל עיקרון — איך ייראה השינוי בסוף השנה.</li>
+          </ul>
+        </div>
+        <div class="block">
+          <span class="lbl">כללים והתנהגויות</span>
+          <ul>
+            <li>פעילות שכבר נוספה יורדת מהבנק (וחוזרת אם מסירים אותה מהתוכנית). אי אפשר להוסיף את אותה פעילות מהבנק פעמיים.</li>
+            <li>פעילות מהבנק מגיעה עם מדדי ההצלחה וקהל היעד שכבר הוגדרו לה — כנקודת פתיחה שאפשר לערוך.</li>
+            <li>כרטיס נכנס מכווץ ומסומן <strong>"טרם הושלם"</strong> עד שממלאים בו אחראי + הסבר קצר. פס התקדמות מראה כמה הושלמו.</li>
+            <li>כל משימה נושאת <strong>תגית מקור</strong> בצבע קבוע (עירוני / בית ספרי / משרד החינוך / ארצי / עולמי).</li>
+          </ul>
+        </div>
+        <div class="block">
+          <span class="lbl warnlbl">פערים ידועים — כרגע הדגמה בלבד</span>
+          <ul>
+            <li><strong>סוכן ה-AI לאיתור יוזמות</strong> ו<strong>עוזר ה-AI לניסוח מדדים / תמונת ניצחון</strong> מייצרים תוכן הדגמה. חיבור ל-AI אמיתי דרך השרת יתווסף בהמשך.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="zone" id="z5">
+      <div class="zhead"><span class="znum">5</span><h2>מתחם ההפקה</h2></div>
+      <div class="panel">
+        <div class="block"><span class="lbl">מה זה</span><p style="margin:0">בונה המסמך. כאן מרכיבים את <strong>מסמך תוכנית העבודה השנתית</strong> ומייצאים אותו, לצד תצוגה מקדימה חיה בפורמט A4.</p></div>
+        <div class="block">
+          <span class="lbl">מה עושים כאן</span>
+          <ul>
+            <li>ממלאים פרטי בית ספר ושנת לימודים.</li>
+            <li>בוחרים את <strong>העקרונות המובילים</strong>: עוגן עוצמה אחד + שני יעדי פריצת דרך, וכותבים לכל אחד נימוק שיופיע במסמך.</li>
+            <li>מדליקים/מכבים <strong>מקטעי מסמך</strong>: שער, דבר המנהל/ת, חזון, עקרונות מובילים, מפת בשלות, תוכנית מפורטת, גאנט, הוויתור הארגוני, חתימות.</li>
+            <li>מייצאים ל-<strong>PDF</strong> (הדפסה) או ל-<strong>Word</strong>.</li>
+          </ul>
+        </div>
+        <div class="block">
+          <span class="lbl">כללים והתנהגויות</span>
+          <ul>
+            <li>המערכת <strong>מציעה</strong> בחירה של העקרונות המובילים לפי מפת הבשלות (החזק ביותר ← עוגן; שני החלשים ← יעדי פריצה), ומציגה את ההמלצה. אפשר לשנות, וכפתור <strong>"החזרה להמלצה"</strong> מחזיר אליה.</li>
+            <li>אם אותו עיקרון נבחר יותר מפעם אחת — מוצגת הערה, בלי לחסום (לפעמים זו בחירה מכוונת).</li>
+            <li>התוכנית המפורטת נמשכת <strong>אוטומטית</strong> מהפעילויות שנבנו במתחם התכנון.</li>
+            <li>התצוגה המקדימה משקפת בזמן אמת את המקטעים שנבחרו.</li>
+          </ul>
+        </div>
+        <div class="block">
+          <span class="lbl warnlbl">פערים ידועים — כרגע הדגמה בלבד</span>
+          <ul>
+            <li><strong>הגאנט השנתי</strong> מוצג עם נתוני דוגמה קבועים; בעתיד ייגזר מהפעילויות.</li>
+            <li><strong>ייצוא ל-Google Docs</strong> מציג הודעת "בקרוב" — כרגע מייצאים ל-Word ופותחים ב-Google Docs.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider">מחוץ למסע — נגישים בכל שלב</div>
+
+    <!-- 6 -->
+    <section class="zone" id="z6">
+      <div class="zhead"><span class="znum">6</span><h2>הגדרות בית ספר</h2></div>
+      <div class="panel">
+        <div class="block"><span class="lbl">מה זה</span><p style="margin:0">המסך שמנהל את זהות בית הספר. נפתח מגלגל השיניים, ושייך <strong>רק לבית הספר</strong> — אין בו שום כלי ניהול עירוני.</p></div>
+        <div class="block">
+          <span class="lbl">מה עושים כאן</span>
+          <ul>
+            <li>ממלאים <strong>כרטיס ביקור בית-ספרי</strong>: לוגו, שם בית הספר, שם המנהל/ת וותק, כמות תלמידים, חזון, יעדים, ייחודיות, וקבצים מצורפים.</li>
+            <li><strong>מאפסים את נתוני האבחון</strong> (מוחק את תשובות האבחון בלבד — פרטי בית הספר ותוכנית הפעולה נשמרים).</li>
+            <li>שולחים <strong>משוב</strong> לצוות הפיתוח, ורואים פרטי <strong>אודות</strong> וגרסה.</li>
+          </ul>
+        </div>
+        <div class="block">
+          <span class="lbl warnlbl">פערים ידועים — כרגע הדגמה בלבד</span>
+          <ul><li><strong>שליחת המשוב</strong> מציגה אישור אך עדיין לא נשלחת לצוות בפועל.</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="zone" id="z7">
+      <div class="zhead"><span class="znum">7</span><h2>אזור הניהול העירוני</h2></div>
+      <div class="panel">
+        <div class="block"><span class="lbl">מה זה</span><p style="margin:0">אפליקציה נפרדת לגמרי, שרואה <strong>רק</strong> מנהל/ת המערכת. מראה כהה שמסמן "אתם לא בהגדרות של בית ספר". שתי לשוניות: דשבורד (ברירת מחדל) וניהול הבנק.</p></div>
+
+        <div class="block">
+          <span class="lbl">7א · הדשבורד העירוני — תמונת מצב של כל העיר</span>
+          <ul>
+            <li><strong>מי עובד במערכת</strong> — כמה בתי ספר טרם התחילו / באמצע מיפוי / סיימו מיפוי / כבר בונים תוכנית, עם טבלה לכל בית ספר (סטטוס, כמה עקרונות מופו, כמה פעילויות, ציון ממוצע, מתי עודכן).</li>
+            <li><strong>תמונת הבשלות העירונית</strong> — מפת עכביש של הממוצע לכל עיקרון, לצד טווח הציונים ומספר בתי הספר שמאחורי כל ממוצע.</li>
+            <li><strong>במה בתי הספר בוחרים להתמקד</strong> — כמה בחרו כל עיקרון כעוגן עוצמה וכמה כיעד פריצת דרך.</li>
+            <li><strong>אילו פעילויות נלקחו מהבנק</strong> — הנבחרות ביותר, ולצידן אלו שאף אחד לא בחר.</li>
+          </ul>
+          <div class="callout"><strong>כלל חשוב:</strong> ממוצע עירוני מחושב <strong>רק על בתי ספר שמיפו בפועל</strong>, ותמיד מוצג לצד מספר בתי הספר שבבסיסו. עיקרון שאיש לא מיפה מוצג כ"—", לא כציון נמוך.</div>
+        </div>
+
+        <div class="block">
+          <span class="lbl">7ב · ניהול הבנק העירוני</span>
+          <ul>
+            <li><strong>בנק הפעילויות</strong> — חיפוש, סינון לפי עיקרון, והסרת פעילות. הסרה מורידה אותה מכל בתי הספר, אך תוכניות שכבר הוסיפו אותה לא נפגעות.</li>
+            <li>פעילויות שבית ספר יצר בעצמו מוצגות לצפייה בלבד (מסומנות "בית-ספרית") — מנהל המערכת לא עורך אותן.</li>
+            <li><strong>סקירת עקרונות</strong> (עם מספר הפעילויות בכל אחד) ורשימת <strong>קהלי היעד</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="block">
+          <span class="lbl">7ג · אשף הוספת פעילות</span>
+          <p style="margin:0 0 .4rem">זמין <strong>רק</strong> למנהל/ת המערכת. פעילות שנוספת בו מוצגת לכל בתי הספר.</p>
+          <ul>
+            <li><strong>הוספה בודדת</strong> — אשף בן ארבעה שלבים: פרטים ← שיוך לעקרונות ולקהל יעד ← מדדים ויישום ← סיכום ושמירה. פעילות אחת יכולה לשרת <strong>כמה עקרונות</strong>.</li>
+            <li><strong>ייבוא מגיליון</strong> — העלאת CSV או הדבקת טבלה. המערכת מזהה עמודות לבד, מאפשרת לתקן, ומציגה תצוגה מקדימה לפני השמירה.</li>
+            <li><strong>התראת כפילויות</strong> — אם פעילות דומה כבר קיימת, מוצגת הערה עם אחוז ההתאמה — אך אפשר להמשיך ולשמור.</li>
+          </ul>
+          <div class="callout"><strong>כלל חשוב:</strong> בית ספר <strong>לעולם לא כותב לבנק העירוני</strong>. הנתיב היחיד שלו הוא "יוזמה ייחודית / אחר" במתחם התכנון, שנשמר בתוכנית שלו בלבד.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- cross-cutting -->
+    <section class="zone" id="data">
+      <div class="zhead"><span class="znum" style="background:var(--todo)">§</span><h2>נתונים, פרטיות והרשאות</h2></div>
+      <div class="panel">
+        <ul style="margin:0">
+          <li><strong>כל המידע הדינמי נשמר בענן.</strong> אין עותק מקומי — סגירת הדפדפן לא מאבדת נתונים, וכניסה ממחשב אחר מציגה את אותה תמונה.</li>
+          <li><strong>הפרדה מלאה בין בתי ספר</strong> — נאכפת בשרת, לא רק בממשק. בית ספר לא יכול לגשת לנתוני אחר גם אם ינסה.</li>
+          <li><strong>שמירה אוטומטית</strong> — כל שינוי נשמר לבד תוך פחות משנייה. אין כפתור "שמור".</li>
+          <li><strong>החלפת משתמש מנקה הכול</strong> — כשמתחלף המשתמש כל הנתונים בזיכרון מתאפסים, כך ששום דבר מבית ספר אחד לא דולף לבא אחריו.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="zone" id="score">
+      <div class="zhead"><span class="znum" style="background:var(--todo)">§</span><h2>איך מחושב ציון הבשלות</h2></div>
+      <div class="panel">
+        <p style="margin:0 0 .3rem">ציון הבשלות של עיקרון משקלל שני מרכיבים:</p>
+        <code class="formula">ציון = (רמת הבשלות שנבחרה × 70%) + (ממוצע שלושת צירי מעגל הזהב × 30%)</code>
+        <ul style="margin:.6rem 0 0">
+          <li><strong>עיקרון שלא מופה</strong> מקבל ציון בסיס (1.0) לצורך <strong>תצוגת הרדאר בלבד</strong>. הציון הזה <strong>לא</strong> נספר בממוצעים העירוניים, שם עיקרון לא-ממופה מוצג כ"—".</li>
+          <li><strong>המלצת העקרונות המובילים</strong> נגזרת מהעקרונות שמופו בפועל: החזק ביותר מוצע כעוגן עוצמה, ושני החלשים כיעדי פריצת דרך.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="zone" id="demo">
+      <div class="zhead"><span class="znum" style="background:var(--warn)">§</span><h2>מה עדיין הדגמה / טרם נבנה</h2></div>
+      <div class="panel">
+        <p style="margin:0 0 .8rem">ריכוז שקוף של מה שנראה במערכת אך אינו פעיל במלואו.</p>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>פריט</th><th>מתחם</th><th>מצב</th></tr></thead>
+            <tbody>
+              <tr><td>סוכן AI לאיתור יוזמות</td><td>תכנון</td><td><span class="chip demo"><span class="dot"></span>הדגמה — תוכן דמה</span></td></tr>
+              <tr><td>עוזר AI למדדים ולתמונת ניצחון</td><td>תכנון</td><td><span class="chip demo"><span class="dot"></span>הדגמה — תוכן דמה</span></td></tr>
+              <tr><td>גאנט שנתי</td><td>הפקה</td><td><span class="chip demo"><span class="dot"></span>נתוני דוגמה קבועים</span></td></tr>
+              <tr><td>ייצוא ל-Google Docs</td><td>הפקה</td><td><span class="chip demo"><span class="dot"></span>"בקרוב" — כרגע דרך Word</span></td></tr>
+              <tr><td>שליחת משוב</td><td>הגדרות</td><td><span class="chip demo"><span class="dot"></span>אישור בלבד, לא נשלח</span></td></tr>
+              <tr><td>עריכת עקרונות וסיסמאות פר בית ספר</td><td>ניהול עירוני</td><td><span class="chip todo"><span class="dot"></span>טרם נבנה</span></td></tr>
+              <tr><td>גרסאות תוכנית מרובות</td><td>תשתית</td><td><span class="chip todo"><span class="dot"></span>תשתית קיימת, ממשק טרם נבנה</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <p class="footnote">אפיון פונקציונלי חי · הפלנר — Holon School Educational Planner · מתעדכן עם כל שינוי פונקציונלי</p>
+
+  </div>
+</main>

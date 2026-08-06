@@ -24,7 +24,7 @@ interface JourneyRailProps {
 /** Calm, count-based encouragement for the progress bar (no emoji). */
 function motivationFor(done: number, total: number): string {
   if (done <= 0) return 'טרם מופו עקרונות · אפשר להתחיל באבחון';
-  if (done >= total) return 'כל שבעת העקרונות מופו · אפשר לעבור לתכנון';
+  if (done >= total) return 'כל העקרונות מופו · אפשר לעבור לתכנון';
   return `מופו ${done} מתוך ${total} עקרונות · אפשר להמשיך`;
 }
 

@@ -1,8 +1,9 @@
 import React from 'react';
-import { PRINCIPLES_DATA } from '../data';
+import { usePrinciples } from '../lib/PrinciplesContext';
 import { DiagnosticAnswers } from '../types';
 import { PrincipleDetailView } from './PrincipleDetailView';
 import { PrincipleMenu, MenuSelection } from './PrincipleMenu';
+import { Collapsible } from './Collapsible';
 
 interface OrientViewProps {
   scores: { [key: number]: number };
@@ -19,8 +20,9 @@ interface OrientViewProps {
  * to a principle's content on click. Selection is controlled by App.
  */
 export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selected, onSelect }) => {
+  const { principles } = usePrinciples();
   const selectedPrinciple =
-    typeof selected === 'number' ? PRINCIPLES_DATA.find((p) => p.id === selected) || null : null;
+    typeof selected === 'number' ? principles.find((p) => p.id === selected) || null : null;
 
   return (
     <div className="flex gap-6 items-start" dir="rtl">
@@ -76,23 +78,95 @@ export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selecte
                   </p>
                   <ol className="space-y-3 pr-4 list-decimal marker:text-primary-500 marker:font-bold">
                     <li className="pr-1">
-                      <strong className="text-slate-900">המדריך התיאורטי המורחב לשבעת העקרונות:</strong> פירוק מעמיק של שבעת עקרונות המינהל. עבור כל עיקרון מוגדרים: ה"לשם מה" (הרציונל והפערים שהוא בא לפתור), ה"איך" (אסטרטגיית היישום, הסדירויות במערכת השעות, הוויתורים הנדרשים והשותפויות באקו-סיסטם העירוני) וה"מה" (התוצרים המצופים מהמורה ומהתלמיד בסוף השנה, לצד הצעד האופרטיבי הראשון ל-1 בספטמבר).
+                      <strong className="text-slate-900">המדריך התיאורטי המורחב לעקרונות:</strong> פירוק מעמיק של עקרונות המינהל. עבור כל עיקרון מוגדרים: ה"לשם מה" (הרציונל והפערים שהוא בא לפתור), ה"איך" (אסטרטגיית היישום, הסדירויות במערכת השעות, הוויתורים הנדרשים והשותפויות באקו-סיסטם העירוני) וה"מה" (התוצרים המצופים מהמורה ומהתלמיד בסוף השנה, לצד הצעד האופרטיבי הראשון ל-1 בספטמבר).
                     </li>
                     <li className="pr-1">
                       <strong className="text-slate-900">ספריית העמקה ומקורות דעת:</strong> ריכוז של קישורים חיים ומנחי ניווט למסמכי המדיניות הרשמיים של משרד החינוך, מחקרי מופ"ת, אוגדני אבני ראשה ומודלים בינלאומיים (OECD), המעניקים תוקף פדגוגי ומחקרי מוצק לתוכניות שלכם.
                     </li>
                     <li className="pr-1">
-                      <strong className="text-slate-900">פרוטוקול מהלך הסדנה להנהלה (Plug &amp; Play):</strong> מערך מובנה בן 90 דקות המאפשר לכם להעתיק את חוויית המפגש המשותף שלנו אל תוך חדר הישיבות שלכם, ולרתום את צוות ההנהלה המורחב לחשיבה משותפת.
-                      <span className="inline-flex items-center gap-1.5 mr-2 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 bg-slate-100/70 border border-slate-200 select-none align-middle">
-                        <i className="fa-solid fa-person-chalkboard text-xs"></i>
-                        <span>מהלך הסדנא</span>
-                        <span className="text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">בקרוב</span>
-                      </span>
+                      <strong className="text-slate-900">פרוטוקול מהלך הסדנה להנהלה (Plug &amp; Play):</strong> מערך מובנה בן 90 דקות המאפשר לכם להעתיק את חוויית המפגש המשותף שלנו אל תוך חדר הישיבות שלכם, ולרתום את צוות ההנהלה המורחב לחשיבה משותפת. המהלך המלא מפורט בהמשך העמוד.
                     </li>
                     <li className="pr-1">
-                      <strong className="text-slate-900">כלי האבחון הדיגיטלי ("רדאר שבעת העקרונות"):</strong> שאלון אינטראקטיבי מבוסס מחווני בשלות מפורטים, המייצר עבורכם <strong className="text-primary-700 font-semibold">מפת עכביש דינמית בזמן אמת</strong>, המציגה ויזואלית את נקודות החוזק הבית-ספריות מול אזורי הקריסה הארגוניים.
+                      <strong className="text-slate-900">כלי האבחון הדיגיטלי ("רדאר העקרונות"):</strong> שאלון אינטראקטיבי מבוסס מחווני בשלות מפורטים, המייצר עבורכם <strong className="text-primary-700 font-semibold">מפת עכביש דינמית בזמן אמת</strong>, המציגה ויזואלית את נקודות החוזק הבית-ספריות מול אזורי הקריסה הארגוניים.
                     </li>
                   </ol>
+                </div>
+
+                {/* The workshop belongs here, in the learning zone: it is how a school
+                    ARRIVES at a work plan, not something to read inside the finished
+                    document. Collapsed by default so the intro stays scannable. */}
+                <div className="pt-2">
+                  <Collapsible
+                    title="מהלך הסדנה המוסדית — 90 דקות"
+                    icon="fa-solid fa-person-chalkboard"
+                    className="shadow-sm"
+                  >
+                    <div className="space-y-5 text-sm leading-relaxed text-slate-600">
+                      <p>
+                        הסדנה נועדה להפוך את האבחון מטופס שממלאים לבד לשיחה מוסדית. הערך שלה אינו
+                        בציון הסופי אלא ב<strong className="text-slate-800">פערי התפיסה שמתגלים בדרך אליו</strong> —
+                        הרגע שבו מתברר שסגנית ורכזת שכבה רואות את אותו עיקרון אחרת לגמרי.
+                      </p>
+
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                          <i className="fa-solid fa-clipboard-check text-primary-600 text-xs"></i>
+                          לפני המפגש
+                        </h4>
+                        <ul className="space-y-1.5 pr-4 list-disc marker:text-primary-400">
+                          <li><strong className="text-slate-700">מי בחדר:</strong> צוות ההנהלה המורחב — סגנים, רכזי שכבות, רכזים פדגוגיים והיועצת. 6–12 משתתפים; פחות מכך מצמצם את הפערים שאפשר לגלות, יותר מכך מקשה על דיון.</li>
+                          <li><strong className="text-slate-700">מה מביאים:</strong> נתונים אמיתיים מהשטח — משובים, סקרי אקלים, נתוני הישגים. הדירוג אמור להישען על ראיה, לא על תחושה.</li>
+                          <li><strong className="text-slate-700">מה קוראים מראש:</strong> את דפי העקרונות במתחם ההיכרות, כדי שזמן המפגש יוקדש לדיון ולא להסבר.</li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                          <i className="fa-solid fa-list-ol text-primary-600 text-xs"></i>
+                          מהלך המפגש
+                        </h4>
+                        <ol className="space-y-2.5 pr-4 list-decimal marker:text-primary-500 marker:font-bold">
+                          <li className="pr-1">
+                            <strong className="text-slate-800">עבודה עצמית ורפלקציה — 15 דק׳.</strong> כל משתתף מדרג
+                            לעצמו את רמת הבשלות בכל עיקרון ורושם הנמקה קצרה. בשלב הזה אין דיון ואין הצגה — כדי
+                            שהדעה של כל אחד תתגבש לפני שהיא מושפעת מהחדר.
+                          </li>
+                          <li className="pr-1">
+                            <strong className="text-slate-800">הצפת נתונים ודיון בפערים — 45 דק׳. זה לב הסדנה.</strong> מציגים
+                            את הדירוגים זה לצד זה. מתעכבים דווקא על העקרונות שבהם הפער בין המשתתפים הוא הגדול ביותר,
+                            ומבקשים מכל צד להביא ראיה. מגיעים לדירוג מוסכם — לא בהצבעה, אלא בבירור.
+                          </li>
+                          <li className="pr-1">
+                            <strong className="text-slate-800">שרטוט הרדאר המוסכם — 10 דק׳.</strong> מזינים את הדירוג
+                            המוסכם ומקבלים את מפת הבשלות המוסדית. זו התמונה שתלווה את התוכנית כולה.
+                          </li>
+                          <li className="pr-1">
+                            <strong className="text-slate-800">בחירת מוקדי העבודה — 20 דק׳.</strong> על בסיס המפה בוחרים
+                            עוגן עוצמה אחד למינוף ושני יעדי פריצת דרך, ומנסחים את הוויתור הארגוני שיפנה להם קשב.
+                            בלי ויתור מפורש, יעדי הפריצה נשארים כוונה.
+                          </li>
+                        </ol>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                          <i className="fa-solid fa-arrow-right-to-bracket text-primary-600 text-xs"></i>
+                          אחרי המפגש — מכאן ממשיכים בכלי
+                        </h4>
+                        <p>
+                          מזינים את הדירוג המוסכם ב<strong className="text-slate-800">מתחם האבחון</strong>, בונים את
+                          הפעילויות ב<strong className="text-slate-800">מתחם התכנון</strong>, ומפיקים את מסמך תוכנית
+                          העבודה ב<strong className="text-slate-800">מתחם ההפקה</strong> — שם גם מאשרים את עוגן העוצמה
+                          ויעדי פריצת הדרך שנבחרו בסדנה.
+                        </p>
+                      </div>
+
+                      <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <strong className="text-slate-700">טיפ:</strong> אם יש רק 45 דקות, ותרו על שלב 4 ולא על שלב 2.
+                        אפשר לבחור מוקדי עבודה בישיבה נפרדת, אבל דירוג מוסכם שלא עבר דיון אמיתי לא יחזיק מעמד לאורך השנה.
+                      </p>
+                    </div>
+                  </Collapsible>
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 text-left font-bold text-slate-700 text-sm leading-normal pl-4">

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { PRINCIPLES_DATA } from '../data';
+import { usePrinciples } from '../lib/PrinciplesContext';
 import { ActionPlan, DiagnosticAnswers, PlanActivity, PrinciplePlan, TaskSource } from '../types';
-import { PRINCIPLE_SHORT_TITLES } from './PrincipleMenu';
 import { RadarChart } from './RadarChart';
 import { sourceMeta } from '../planBank';
+import { useAudiences, audienceLabel } from '../lib/audiences';
+import { recommendedFocus } from '../lib/scoring';
 
 // Displayed chip = task source; fall back for older saved plans without `source`.
 const activitySource = (a: PlanActivity): TaskSource =>
@@ -14,7 +15,17 @@ interface ExportViewProps {
   answers: DiagnosticAnswers;
   actionPlan: ActionPlan;
   onUpdateActionPlan: (fields: Partial<ActionPlan>) => void;
-  aiResult: any;
+  /** Per-principle plans, owned by App (DB-backed) — read-only here. */
+  plans: Record<number, PrinciplePlan>;
+  /** Builder config, owned by App (DB-backed). null until loaded. */
+  config: ExportConfig | null;
+  onUpdateConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
+}
+
+export interface ExportConfig {
+  sections: Record<string, boolean>;
+  principalMessage: string;
+  visionText: string;
 }
 
 // --- document section model -------------------------------------------------
@@ -26,7 +37,6 @@ type SectionKey =
   | 'maturityMap'
   | 'detailedPlan'
   | 'gantt'
-  | 'workshopProtocol'
   | 'organizationalSacrifice'
   | 'signatures';
 
@@ -38,7 +48,6 @@ const SECTIONS: { key: SectionKey; label: string; icon: string }[] = [
   { key: 'maturityMap', label: 'מפת בשלות (רדאר + טבלה)', icon: 'fa-solid fa-chart-pie' },
   { key: 'detailedPlan', label: 'תוכנית פעולה מפורטת', icon: 'fa-solid fa-list-check' },
   { key: 'gantt', label: 'גאנט שנתי', icon: 'fa-solid fa-bars-staggered' },
-  { key: 'workshopProtocol', label: 'מהלך הסדנה המוסדית', icon: 'fa-solid fa-people-group' },
   { key: 'organizationalSacrifice', label: 'הוויתור הארגוני', icon: 'fa-solid fa-scale-balanced' },
   { key: 'signatures', label: 'חתימות', icon: 'fa-solid fa-signature' },
 ];
@@ -51,20 +60,14 @@ const DEFAULT_SECTIONS: Record<SectionKey, boolean> = {
   maturityMap: true,
   detailedPlan: true,
   gantt: false,
-  workshopProtocol: true,
   organizationalSacrifice: false,
   signatures: true,
 };
 
 const CONFIG_KEY = 'school_export_config_v1';
-const PLANS_KEY = 'school_principle_plans_v1';
 
 const PRIORITY_LABEL: Record<string, string> = { high: 'גבוהה', medium: 'בינונית', low: 'רגילה' };
-const TARGET_LABEL: Record<string, string> = {
-  all: 'כלל צוות בית הספר ותלמידיו',
-  layers: 'שכבות גיל ספציפיות',
-  teachers: 'צוות מנהיגות/מורים בלבד',
-};
+// Audience labels are DB data (the `audiences` picklist), resolved via useAudiences().
 
 // --- demo Gantt data (fixed sample, per product decision) -------------------
 const GANTT_MONTHS = ['ספט', 'אוק', 'נוב', 'דצמ', 'ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יונ', 'יול'];
@@ -82,43 +85,23 @@ export const ExportView: React.FC<ExportViewProps> = ({
   answers,
   actionPlan,
   onUpdateActionPlan,
+  plans,
+  config: dbConfig,
+  onUpdateConfig,
 }) => {
-  // Persisted builder config
-  const [config, setConfig] = useState<{
-    sections: Record<SectionKey, boolean>;
-    principalMessage: string;
-    visionText: string;
-  }>(() => {
-    try {
-      const saved = localStorage.getItem(CONFIG_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          sections: { ...DEFAULT_SECTIONS, ...(parsed.sections || {}) },
-          principalMessage: parsed.principalMessage || '',
-          visionText: parsed.visionText || '',
-        };
-      }
-    } catch {
-      /* ignore */
-    }
-    return { sections: DEFAULT_SECTIONS, principalMessage: '', visionText: '' };
-  });
+  const { principles, shortTitles } = usePrinciples();
+  const { audiences } = useAudiences();
 
-  useEffect(() => {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-  }, [config]);
+  // Builder config lives in App (DB-backed). Merge over defaults so newly added
+  // section keys are backfilled for plans saved before they existed.
+  const config = {
+    sections: { ...DEFAULT_SECTIONS, ...((dbConfig?.sections ?? {}) as Partial<Record<SectionKey, boolean>>) },
+    principalMessage: dbConfig?.principalMessage ?? '',
+    visionText: dbConfig?.visionText ?? '',
+  };
 
-  // Read the per-principle detailed plans (built in the planning zone)
-  const [plans, setPlans] = useState<Record<number, PrinciplePlan>>({});
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(PLANS_KEY);
-      setPlans(saved ? JSON.parse(saved) : {});
-    } catch {
-      setPlans({});
-    }
-  }, []);
+  const setConfig = (updater: (prev: typeof config) => typeof config) =>
+    onUpdateConfig(() => updater(config));
 
   const [docsNotice, setDocsNotice] = useState(false);
 
@@ -127,7 +110,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
     setConfig((c) => ({ ...c, sections: { ...c.sections, [k]: !c.sections[k] } }));
 
   const today = new Date().toLocaleDateString('he-IL');
-  const principlesWithPlan = PRINCIPLES_DATA.filter(
+  const principlesWithPlan = principles.filter(
     (p) => (plans[p.id]?.activities?.length ?? 0) > 0 || (plans[p.id]?.victoryVision ?? '').trim()
   );
 
@@ -160,11 +143,63 @@ export const ExportView: React.FC<ExportViewProps> = ({
     <h2 className="text-lg font-bold border-r-4 border-primary-600 pr-2 text-slate-900">{children}</h2>
   );
 
+  // ---- leading principles (editable here, rendered in section 4 below) --------
+  const setStrength = (id?: number) => onUpdateActionPlan({ strengths: id ? [id] : [] });
+
+  const setBreakthrough = (slot: 0 | 1) => (id?: number) => {
+    const next = [...actionPlan.breakthroughs];
+    if (id) next[slot] = id;
+    else next.splice(slot, 1);
+    onUpdateActionPlan({ breakthroughs: next.filter(Boolean) });
+  };
+
+  const focusFields = [
+    {
+      label: 'עוגן העוצמה הבית-ספרי',
+      value: actionPlan.strengths[0],
+      onPick: setStrength,
+      reason: actionPlan.strengthReason ?? '',
+      reasonKey: 'strengthReason' as const,
+    },
+    {
+      label: 'יעד פריצת דרך ראשון',
+      value: actionPlan.breakthroughs[0],
+      onPick: setBreakthrough(0),
+      reason: actionPlan.breakthroughReason1 ?? '',
+      reasonKey: 'breakthroughReason1' as const,
+    },
+    {
+      label: 'יעד פריצת דרך שני',
+      value: actionPlan.breakthroughs[1],
+      onPick: setBreakthrough(1),
+      reason: actionPlan.breakthroughReason2 ?? '',
+      reasonKey: 'breakthroughReason2' as const,
+      // The list stays dense, so choosing here while the first slot is empty would make
+      // the pick land in the first slot. Require them in order instead of surprising.
+      disabled: !actionPlan.breakthroughs[0],
+    },
+  ];
+
+  const picked = focusFields.map((f) => f.value).filter(Boolean) as number[];
+  const focusClash = new Set(picked).size !== picked.length;
+
+  const recommendation = recommendedFocus(answers);
+  const recommendationDiffers =
+    Object.keys(answers).length > 0 &&
+    (actionPlan.strengths[0] !== recommendation.strength ||
+      actionPlan.breakthroughs.join() !== recommendation.breakthroughs.join());
+
+  const applyRecommendation = () =>
+    onUpdateActionPlan({
+      strengths: recommendation.strength ? [recommendation.strength] : [],
+      breakthroughs: recommendation.breakthroughs,
+    });
+
   const leadingRow = (label: string, id: number | undefined, reason: string | undefined, accent: string) => (
     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60" style={{ borderRightColor: accent, borderRightWidth: 4 }}>
       <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{label}</span>
       <p className="text-sm font-bold text-slate-900 mt-0.5">
-        {id ? `עיקרון ${id}: ${PRINCIPLE_SHORT_TITLES[id] ?? ''}` : 'טרם נבחר'}
+        {id ? `עיקרון ${id}: ${shortTitles[id] ?? ''}` : 'טרם נבחר'}
       </p>
       {reason ? (
         <p className="text-xs text-slate-600 leading-relaxed mt-2 whitespace-pre-line text-justify">{reason}</p>
@@ -207,6 +242,81 @@ export const ExportView: React.FC<ExportViewProps> = ({
               />
             </div>
           </div>
+        </div>
+
+        {/* Leading principles — edited here, where their effect on the document is
+            visible. The system derives a suggestion from the maturity map; this is
+            where the principal can disagree with it. */}
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">עקרונות מובילים</h4>
+            {recommendationDiffers && (
+              <button
+                type="button"
+                onClick={applyRecommendation}
+                title="החזרת הבחירה לגזירה האוטומטית מהציונים"
+                className="text-[10px] font-bold text-primary-700 hover:text-primary-900 hover:underline cursor-pointer shrink-0"
+              >
+                החזרה להמלצה
+              </button>
+            )}
+          </div>
+
+          {/* Show what the recommendation actually is — otherwise "restore it" is a
+              blind click, and a suggestion frozen from a partial mapping stays hidden. */}
+          {recommendation.strength ? (
+            <div className="text-[10px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-100 rounded-lg p-2 space-y-0.5">
+              <p className="font-bold text-slate-600">המלצת המערכת לפי המיפוי:</p>
+              <p>
+                <span className="text-emerald-700">עוגן</span> — {shortTitles[recommendation.strength]}
+              </p>
+              {recommendation.breakthroughs.length > 0 && (
+                <p>
+                  <span className="text-indigo-700">פריצה</span> —{' '}
+                  {recommendation.breakthroughs.map((id) => shortTitles[id]).join(' · ')}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              אין עדיין מיפוי, ולכן אין המלצה. השלימו את מתחם האבחון או בחרו ידנית.
+            </p>
+          )}
+
+          {focusFields.map((f) => (
+            <div key={f.label} className="space-y-1">
+              <label className="block text-[11px] font-bold text-slate-500">{f.label}</label>
+              <select
+                value={f.value ?? ''}
+                disabled={f.disabled}
+                title={f.disabled ? 'בחרו קודם את יעד פריצת הדרך הראשון' : undefined}
+                onChange={(e) => f.onPick(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full p-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+              >
+                <option value="">— טרם נבחר —</option>
+                {principles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title} ({scores[p.id]?.toFixed(1) ?? '1.0'})
+                  </option>
+                ))}
+              </select>
+              <textarea
+                rows={2}
+                value={f.reason}
+                onChange={(e) => onUpdateActionPlan({ [f.reasonKey]: e.target.value })}
+                placeholder="נימוק שיופיע במסמך…"
+                className="w-full p-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          ))}
+
+          {/* Advisory only — a school may deliberately double up. */}
+          {focusClash && (
+            <p className="flex items-start gap-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-2">
+              <i className="fa-solid fa-triangle-exclamation mt-0.5"></i>
+              <span>אותו עיקרון נבחר יותר מפעם אחת. אפשר להשאיר כך, אבל בדרך כלל עדיף לפזר.</span>
+            </p>
+          )}
         </div>
 
         {/* section toggles */}
@@ -301,7 +411,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
             <div className="text-center space-y-3 pb-6 border-b-2 border-slate-900">
               <img src="/logo.png" alt="עיריית חולון" className="h-14 w-auto object-contain mx-auto mb-2" />
               <h1 className="text-3xl font-bold text-slate-900">תוכנית עבודה שנתית בית-ספרית</h1>
-              <p className="text-sm font-bold text-primary-700">ברוח שבעת עקרונות תמונת העתיד והמציאות המשתנה</p>
+              <p className="text-sm font-bold text-primary-700">ברוח עקרונות תמונת העתיד והמציאות המשתנה</p>
               <div className="flex flex-wrap justify-center gap-x-8 gap-y-1 text-xs font-mono text-slate-600 pt-2">
                 <span><strong>בית ספר:</strong> {actionPlan.schoolName || '___________'}</span>
                 <span><strong>שנת לימודים:</strong> {actionPlan.schoolYear || '_______'}</span>
@@ -359,12 +469,12 @@ export const ExportView: React.FC<ExportViewProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {PRINCIPLES_DATA.map((p) => {
+                  {principles.map((p) => {
                     const ans = answers[p.id];
                     return (
                       <tr key={p.id}>
                         <td className="border border-slate-200 p-2 font-mono text-center">{p.id}</td>
-                        <td className="border border-slate-200 p-2 font-bold">{PRINCIPLE_SHORT_TITLES[p.id] ?? p.title}</td>
+                        <td className="border border-slate-200 p-2 font-bold">{shortTitles[p.id] ?? p.title}</td>
                         <td className="border border-slate-200 p-2 font-mono font-bold text-center bg-slate-50">
                           {ans ? (scores[p.id] || 1).toFixed(1) : '—'}
                         </td>
@@ -392,7 +502,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
                     <div key={p.id} className="border border-slate-200 rounded-xl overflow-hidden" style={{ borderRightColor: p.accentColor, borderRightWidth: 4 }}>
                       <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
                         <i className={p.icon} style={{ color: p.accentColor }}></i>
-                        <span className="font-bold text-sm text-slate-900">עיקרון {p.id}: {PRINCIPLE_SHORT_TITLES[p.id] ?? p.title}</span>
+                        <span className="font-bold text-sm text-slate-900">עיקרון {p.id}: {shortTitles[p.id] ?? p.title}</span>
                       </div>
                       <div className="p-4 space-y-3">
                         {plan.activities.map((a) => {
@@ -406,7 +516,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
                               {a.desc && <p className="text-xs text-slate-600 leading-relaxed mb-2">{a.desc}</p>}
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-[11px] text-slate-500">
                                 <span><strong className="text-slate-700">אחראי:</strong> {a.owner || '—'}</span>
-                                <span><strong className="text-slate-700">קהל יעד:</strong> {TARGET_LABEL[a.target]}</span>
+                                <span><strong className="text-slate-700">קהל יעד:</strong> {audienceLabel(a.audiences, a.audienceNote, audiences)}</span>
                                 <span><strong className="text-slate-700">עדיפות:</strong> {PRIORITY_LABEL[a.priority]}</span>
                               </div>
                               {a.metrics && (
@@ -476,17 +586,6 @@ export const ExportView: React.FC<ExportViewProps> = ({
           )}
 
           {/* 8. Workshop protocol */}
-          {on('workshopProtocol') && (
-            <section className="space-y-3 break-inside-avoid">
-              <SectionHeading>מהלך הסדנה המוסדית ופרוטוקול ההפעלה (90 דק׳)</SectionHeading>
-              <div className="text-xs text-slate-700 leading-relaxed text-justify bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5">
-                <p><strong>שלב א׳: עבודה עצמית ורפלקציה (15 דק׳):</strong> כל חבר הנהלה מעריך ומסמן באופן עצמאי את רמת הבשלות ורושם הנמקה קצרה כהוכחה מהשטח.</p>
-                <p><strong>שלב ב׳: הצפת נתונים ודיון בפערים (45 דק׳) — לב הסדנה:</strong> מציגים את הדירוגים על גבי הרדאר, מנהלים דיון ממוקד סביב פערי תפיסה ומגיעים לדירוג מוסכם.</p>
-                <p><strong>שלב ג׳: שרטוט הרדאר המוסכם הסופי (10 דק׳):</strong> מחברים את הציון המוסכם של כל 7 העקרונות לקבלת מפת הבשלות המוסדית הסופית.</p>
-              </div>
-            </section>
-          )}
-
           {/* 9. Organizational sacrifice */}
           {on('organizationalSacrifice') && (
             <section className="space-y-2 break-inside-avoid">

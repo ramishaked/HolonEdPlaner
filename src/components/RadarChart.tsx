@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PRINCIPLES_DATA } from '../data';
+import { usePrinciples } from '../lib/PrinciplesContext';
 
 interface RadarChartProps {
   scores: { [key: number]: number }; // principleId -> score (1.0 to 4.0)
@@ -14,6 +14,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
   onHoverPrinciple,
   onSelectPrinciple,
 }) => {
+  const { principles } = usePrinciples();
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
 
   // SVG parameters
@@ -22,7 +23,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
   const cx = width / 2;
   const cy = height / 2 - 10;
   const r = 130;
-  const totalAxes = 7;
+  const totalAxes = principles.length || 7;
 
   // Compute angles for 7 axes starting from the top (-90 deg), going clockwise
   const getCoordinates = (index: number, val: number) => {
@@ -43,7 +44,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
   });
 
   // Coordinates for user data values
-  const userPoints = PRINCIPLES_DATA.map((p, i) => {
+  const userPoints = principles.map((p, i) => {
     const score = scores[p.id] || 1;
     return getCoordinates(i, score);
   });
@@ -52,22 +53,11 @@ export const RadarChart: React.FC<RadarChartProps> = ({
     return points.map((p) => `${p.x},${p.y}`).join(' ');
   };
 
-  // Brief titles for radar labels to prevent overflow
-  const shortLabels: { [key: number]: string } = {
-    1: "ליבת מיומנויות",
-    2: "למידה אנושית",
-    3: "תשתית AI",
-    4: "מודל BYOD",
-    5: "חינוך הוליסטי",
-    6: "מרחבי למידה",
-    7: "תרבות מייקרס",
-  };
-
   return (
     <div className="flex flex-col items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden w-full mx-auto">
       <div className="text-center mb-4">
         <h4 className="font-semibold text-lg text-slate-900">מפת העכביש הבית-ספרית</h4>
-        <p className="text-xs text-slate-500">תמונת מצב חזותית בזמן אמת של 7 העקרונות</p>
+        <p className="text-xs text-slate-500">תמונת מצב חזותית בזמן אמת של העקרונות</p>
       </div>
 
       <svg
@@ -116,7 +106,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
         })}
 
         {/* Spoke Axes Lines */}
-        {PRINCIPLES_DATA.map((p, i) => {
+        {principles.map((p, i) => {
           const outerPt = getCoordinates(i, 4);
           return (
             <line
@@ -141,7 +131,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
         />
 
         {/* Text Labels at the outer vertices */}
-        {PRINCIPLES_DATA.map((p, i) => {
+        {principles.map((p, i) => {
           const outerPt = getCoordinates(i, 4);
           const labelDist = 24; // offset label slightly outside the tip
           const angle = -Math.PI / 2 + (2 * Math.PI * i) / totalAxes;
@@ -188,7 +178,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
                 }`}
                 style={{ direction: 'rtl' }}
               >
-                {shortLabels[p.id]}
+                {p.shortLabel || p.title}
               </text>
               <text
                 x={lx}
@@ -205,7 +195,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
 
         {/* Interactive Vertex Dots */}
         {userPoints.map((pt, i) => {
-          const p = PRINCIPLES_DATA[i];
+          const p = principles[i];
           const isSelected = hoveredPoint === p.id || activeId === p.id;
           const score = scores[p.id] || 1;
 

@@ -1,16 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PRINCIPLES_DATA } from '../data';
+import { usePrinciples } from '../lib/PrinciplesContext';
 import { DiagnosticAnswers } from '../types';
-
-/**
- * Canonical principle titles used across the whole system.
- * Derived from `PRINCIPLES_DATA` so there is a single source of truth — the
- * exact same phrasing appears in the menu, headers, plan, diagnostic and print.
- */
-export const PRINCIPLE_SHORT_TITLES: Record<number, string> = Object.fromEntries(
-  PRINCIPLES_DATA.map((p) => [p.id, p.title])
-);
 
 export type MenuSelection = number | 'intro';
 
@@ -27,6 +18,9 @@ interface PrincipleMenuProps {
   introSummary?: string;
   /** Header label for the menu. */
   title?: string;
+  /** Per-principle activity counts (order_index → count). When >0 a small "planned"
+   *  dot shows on the row. Optional — only the planning zone passes it. */
+  activityCounts?: Record<number, number>;
 }
 
 const COLLAPSE_KEY = 'school_principle_menu_collapsed_v1';
@@ -55,8 +49,10 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
   introLabel = 'מבוא · על הקיט',
   introIcon = 'fa-solid fa-circle-info',
   introSummary = INTRO_SUMMARY,
-  title = 'שבעת העקרונות',
+  title = 'עקרונות תמונת העתיד',
+  activityCounts,
 }) => {
+  const { principles, shortTitles } = usePrinciples();
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     const saved = localStorage.getItem(COLLAPSE_KEY);
     if (saved === 'true') return true;
@@ -105,8 +101,9 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
     onClick: () => void;
     scoreLabel?: string;
     assessed?: boolean;
+    planned?: boolean;
   }) => {
-    const { key, icon, accent, label, summary, active, onClick, scoreLabel, assessed } = opts;
+    const { key, icon, accent, label, summary, active, onClick, scoreLabel, assessed, planned } = opts;
     return (
       <button
         key={key}
@@ -125,7 +122,7 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
         }`}
       >
         <span
-          className={`rounded-lg flex items-center justify-center shrink-0 ${
+          className={`relative rounded-lg flex items-center justify-center shrink-0 ${
             collapsed ? 'w-9 h-9' : 'w-7 h-7'
           } ${collapsed && active ? 'ring-2 ring-primary-500 ring-offset-1' : ''}`}
           style={{ backgroundColor: active && !collapsed ? 'rgba(255,255,255,0.18)' : `${accent}1a` }}
@@ -134,6 +131,13 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
             className={`${icon} ${collapsed ? 'text-base' : 'text-sm'}`}
             style={{ color: active && !collapsed ? '#ffffff' : accent }}
           ></i>
+          {planned && (
+            <span
+              className="absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"
+              title="יש פעילויות בתוכנית"
+              aria-label="יש פעילויות בתוכנית"
+            />
+          )}
         </span>
 
         {!collapsed && <span className="flex-1 text-xs font-bold leading-tight">{label}</span>}
@@ -176,19 +180,20 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
 
       {includeIntro && <div className="h-px bg-slate-100 my-1"></div>}
 
-      {PRINCIPLES_DATA.map((p) => {
+      {principles.map((p) => {
         const assessed = !!answers[p.id];
         const score = scores[p.id] ?? 1;
         return renderRow({
           key: String(p.id),
           icon: p.icon,
           accent: p.accentColor,
-          label: PRINCIPLE_SHORT_TITLES[p.id] ?? p.title,
+          label: shortTitles[p.id] ?? p.title,
           summary: p.shortSummary,
           active: selected === p.id,
           onClick: () => handleSelect(p.id),
           scoreLabel: assessed ? score.toFixed(1) : '—',
           assessed,
+          planned: (activityCounts?.[p.id] ?? 0) > 0,
         });
       })}
     </div>

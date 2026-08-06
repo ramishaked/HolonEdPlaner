@@ -9,6 +9,11 @@ interface SettingsViewProps {
   onUpdateActionPlan: (fields: Partial<ActionPlan>) => void;
   onResetDiagnostic: () => void;
   onClose: () => void;
+  /** Logo + attachments live in Supabase Storage (handled by App). */
+  onUploadLogo: (file: File) => void | Promise<void>;
+  onRemoveLogo: () => void | Promise<void>;
+  onUploadFiles: (files: File[]) => void | Promise<void>;
+  onRemoveFile: (index: number) => void | Promise<void>;
 }
 
 const fmtSize = (bytes: number) => {
@@ -56,37 +61,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateActionPlan,
   onResetDiagnostic,
   onClose,
+  onUploadLogo,
+  onRemoveLogo,
+  onUploadFiles,
+  onRemoveFile,
 }) => {
   const logoInput = useRef<HTMLInputElement>(null);
   const filesInput = useRef<HTMLInputElement>(null);
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminNotice, setAdminNotice] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onUpdateProfile({ logoDataUrl: String(reader.result) });
-    reader.readAsDataURL(file);
+    onUploadLogo(file);
     e.target.value = '';
   };
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(e.target.files || []);
     if (list.length === 0) return;
-    onUpdateProfile({
-      files: [...profile.files, ...list.map((f) => ({ name: f.name, size: f.size, type: f.type }))],
-    });
+    onUploadFiles(list);
     e.target.value = '';
   };
 
-  const removeFile = (idx: number) =>
-    onUpdateProfile({ files: profile.files.filter((_, i) => i !== idx) });
+  const removeFile = (idx: number) => onRemoveFile(idx);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 print:hidden" dir="rtl">
@@ -136,7 +137,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
               {profile.logoDataUrl && (
                 <button
-                  onClick={() => onUpdateProfile({ logoDataUrl: '' })}
+                  onClick={() => onRemoveLogo()}
                   className="px-3 py-1.5 text-xs font-bold rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-100 transition-colors cursor-pointer"
                 >
                   הסרה
@@ -256,23 +257,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </Field>
       </Card>
 
-      {/* ============ 2. Admin screen ============ */}
-      <Card
-        icon="fa-solid fa-user-shield"
-        title="מסך מנהל המערכת"
-        subtitle=""
-        accent="text-indigo-600 bg-indigo-50"
-      >
-        <button
-          onClick={() => { setAdminOpen(true); setAdminNotice(false); setAdminPassword(''); }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
-        >
-          <i className="fa-solid fa-lock"></i>
-          כניסה למסך מנהל המערכת
-        </button>
-      </Card>
-
-      {/* ============ 3. Reset diagnostic ============ */}
+      {/* ============ 2. Reset diagnostic ============ */}
       <Card
         icon="fa-solid fa-rotate-left"
         title="איפוס נתוני האבחון"
@@ -288,7 +273,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </Card>
 
-      {/* ============ 4. Feedback ============ */}
+      {/* ============ 3. Feedback ============ */}
       <Card
         icon="fa-solid fa-comment-dots"
         title="שליחת משוב"
@@ -322,7 +307,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </Card>
 
-      {/* ============ 5. About ============ */}
+      {/* ============ 4. About ============ */}
       <Card
         icon="fa-solid fa-circle-info"
         title="אודות המערכת"
@@ -331,7 +316,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="space-y-3 text-sm text-slate-600 leading-relaxed">
           <p>
             <strong className="text-slate-900">הפלנר (Holon School Educational Planner)</strong> — העוזר החכם לבניית
-            תוכנית העצמה בית ספרית, ברוח שבעת עקרונות תמונת העתיד והמציאות המשתנה.
+            תוכנית העצמה בית ספרית, ברוח עקרונות תמונת העתיד והמציאות המשתנה.
           </p>
           <p>
             הכלי מלווה את הנהלת בית הספר במסע: היכרות עם העקרונות, אבחון בשלות עצמי, תכנון פעולות והפקת תוכנית עבודה שנתית.
@@ -376,52 +361,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* -------- admin password modal -------- */}
-      {adminOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setAdminOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-200 p-6 space-y-4 text-right" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <span className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shrink-0">
-                <i className="fa-solid fa-user-shield"></i>
-              </span>
-              <h3 className="text-base font-bold text-slate-900">כניסה למסך מנהל המערכת</h3>
-            </div>
-            {adminNotice ? (
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl p-3">
-                <i className="fa-solid fa-screwdriver-wrench"></i>
-                מסך מנהל המערכת בבנייה ויתווסף בקרוב.
-              </div>
-            ) : (
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && adminPassword.trim()) setAdminNotice(true); }}
-                placeholder="סיסמת ניהול…"
-                autoFocus
-                className={inputCls}
-              />
-            )}
-            <div className="flex gap-2.5 justify-end pt-1">
-              {!adminNotice && (
-                <button
-                  onClick={() => setAdminNotice(true)}
-                  disabled={!adminPassword.trim()}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  כניסה
-                </button>
-              )}
-              <button
-                onClick={() => setAdminOpen(false)}
-                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
-              >
-                סגירה
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
