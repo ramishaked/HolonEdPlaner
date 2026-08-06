@@ -14,8 +14,38 @@ export const RadarChart: React.FC<RadarChartProps> = ({
   onHoverPrinciple,
   onSelectPrinciple,
 }) => {
-  const { principles } = usePrinciples();
+  const { principles, rubrics } = usePrinciples();
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+
+  /**
+   * The legend names the maturity levels, and those names are DB content the city
+   * admin edits — never hardcode them here. The rubric is per principle, while the
+   * legend is global, so a level only gets a name when every principle that defines
+   * it agrees; otherwise the number alone is the only honest thing to show.
+   */
+  const legendLevels = React.useMemo(() => {
+    const byLevel = new Map<number, Set<string>>();
+    for (const rubric of rubrics) {
+      for (const l of rubric.levels) {
+        const name = l.name.trim();
+        if (!name) continue;
+        (byLevel.get(l.level) ?? byLevel.set(l.level, new Set()).get(l.level)!).add(name);
+      }
+    }
+
+    const count = Math.max(0, ...rubrics.flatMap((r) => r.levels.map((l) => l.level)));
+    return Array.from({ length: count }, (_, i) => {
+      const level = i + 1;
+      const names = byLevel.get(level);
+      const agreed = names?.size === 1 ? [...names][0] : '';
+      return {
+        level,
+        // "ראשוני / ניצוצות" → "ראשוני": the legend cell is narrow, the title carries the rest.
+        label: agreed ? (agreed.split('/')[0].trim() || agreed) : '',
+        title: agreed || (names && names.size > 1 ? 'העקרונות מגדירים את הרמה הזו בשמות שונים' : ''),
+      };
+    });
+  }, [rubrics]);
 
   // SVG parameters
   const width = 450;
@@ -233,24 +263,32 @@ export const RadarChart: React.FC<RadarChartProps> = ({
       </svg>
 
       {/* Micro Legend & Interactive stats */}
-      <div className="grid grid-cols-4 gap-2 border-t border-slate-200 pt-4 mt-2 w-full text-center">
-        <div className="flex flex-col items-center">
-          <span className="text-xs font-bold text-slate-400">רמה 1</span>
-          <span className="text-xs text-slate-500 font-medium">ניצוצות</span>
+      {!!legendLevels.length && (
+        <div
+          className="grid gap-2 border-t border-slate-200 pt-4 mt-2 w-full text-center"
+          style={{ gridTemplateColumns: `repeat(${legendLevels.length}, minmax(0, 1fr))` }}
+        >
+          {legendLevels.map(({ level, label, title }) => {
+            const top = level === legendLevels.length;
+            return (
+              <div key={level} className="flex flex-col items-center" title={title || undefined}>
+                <span className={`text-xs font-bold ${top ? 'text-indigo-500' : 'text-slate-400'}`}>
+                  רמה {level}
+                </span>
+                {label && (
+                  <span
+                    className={`text-xs line-clamp-1 ${
+                      top ? 'text-indigo-600 font-bold' : 'text-slate-500 font-medium'
+                    }`}
+                  >
+                    {label}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
-        <div className="flex flex-col items-center">
-          <span className="text-xs font-bold text-slate-400">רמה 2</span>
-          <span className="text-xs text-slate-500 font-medium">חדשנות</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <span className="text-xs font-bold text-slate-400">רמה 3</span>
-          <span className="text-xs text-slate-500 font-medium">בשגרה</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <span className="text-xs font-bold text-indigo-500">רמה 4</span>
-          <span className="text-xs text-indigo-600 font-bold">חלוציות</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
