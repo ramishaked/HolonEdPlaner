@@ -5,9 +5,11 @@ import type { BankItem } from '../lib/activityBank';
 import {
   createActivity,
   createActivities,
+  draftFromBankItem,
   emptyDraft,
   findSimilar,
   similarity,
+  updateActivity,
   type ActivityDraft,
   type BulkResult,
   type DuplicateHit,
@@ -22,6 +24,8 @@ interface Props {
   viewer: AdminViewer;
   /** Everything already in the bank — used only to warn about look-alikes. */
   existing: BankItem[];
+  /** Set to edit an existing municipal activity instead of creating a new one. */
+  editing?: BankItem;
   onClose: () => void;
   /** Called after a successful save so the caller can refresh the bank. */
   onSaved: () => void;
@@ -93,13 +97,15 @@ const DuplicateWarning: React.FC<{ hits: DuplicateHit[] }> = ({ hits }) => {
 
 // ---- the wizard -------------------------------------------------------------
 
-export const ActivityWizard: React.FC<Props> = ({ viewer, existing, onClose, onSaved }) => {
+export const ActivityWizard: React.FC<Props> = ({ viewer, existing, editing, onClose, onSaved }) => {
   const { principles, orderToId } = usePrinciples();
   const { audiences } = useAudiences();
 
   const [mode, setMode] = useState<Mode>('single');
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<ActivityDraft>(emptyDraft());
+  const [draft, setDraft] = useState<ActivityDraft>(() =>
+    editing ? draftFromBankItem(editing) : emptyDraft(),
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<string>('');
@@ -121,7 +127,12 @@ export const ActivityWizard: React.FC<Props> = ({ viewer, existing, onClose, onS
         : [...d.audiences, slug],
     }));
 
-  const hits = useMemo(() => findSimilar(draft.title, existing), [draft.title, existing]);
+  // An edited activity must not be flagged as a duplicate of itself.
+  const others = useMemo(
+    () => (editing ? existing.filter((i) => i.key !== editing.key) : existing),
+    [existing, editing],
+  );
+  const hits = useMemo(() => findSimilar(draft.title, others), [draft.title, others]);
 
   const stepValid = [
     draft.title.trim().length > 1 && draft.short.trim().length > 1,
@@ -133,10 +144,12 @@ export const ActivityWizard: React.FC<Props> = ({ viewer, existing, onClose, onS
   const save = async () => {
     setSaving(true);
     setError('');
-    const r = await createActivity(draft, viewer, orderToId);
+    const r = editing
+      ? await updateActivity({ ...draft, id: editing.key }, orderToId)
+      : await createActivity(draft, viewer, orderToId);
     setSaving(false);
     if (!r.ok) { setError(r.error ?? 'השמירה נכשלה.'); return; }
-    setDone('הפעילות נוספה לבנק.');
+    setDone(editing ? 'הפעילות עודכנה.' : 'הפעילות נוספה לבנק.');
     onSaved();
   };
 
@@ -157,11 +170,16 @@ export const ActivityWizard: React.FC<Props> = ({ viewer, existing, onClose, onS
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <i className="fa-solid fa-wand-magic-sparkles text-primary-600" aria-hidden="true" />
-                הוספת פעילות לבנק
+                <i
+                  className={`fa-solid ${editing ? 'fa-pen-to-square' : 'fa-wand-magic-sparkles'} text-primary-600`}
+                  aria-hidden="true"
+                />
+                {editing ? 'עריכת פעילות' : 'הוספת פעילות לבנק'}
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                הפעילות תתווסף לבנק העירוני ותוצג לכל בתי הספר.
+                {editing
+                  ? 'השינוי יופיע מיד לכל בתי הספר. תוכניות שכבר לקחו את הפעילות אינן משתנות.'
+                  : 'הפעילות תתווסף לבנק העירוני ותוצג לכל בתי הספר.'}
               </p>
             </div>
             <button
@@ -173,7 +191,8 @@ export const ActivityWizard: React.FC<Props> = ({ viewer, existing, onClose, onS
             </button>
           </div>
 
-          <div className="flex gap-1.5 mt-4">
+          {/* Bulk import creates rows; it has no meaning while editing one. */}
+          <div className={`flex gap-1.5 mt-4 ${editing ? 'hidden' : ''}`}>
             <button
               type="button"
               onClick={() => { setMode('single'); setDone(''); }}
@@ -202,12 +221,14 @@ export const ActivityWizard: React.FC<Props> = ({ viewer, existing, onClose, onS
             <i className="fa-solid fa-circle-check text-4xl text-emerald-500" aria-hidden="true" />
             <p className="font-bold text-slate-800 mt-3">{done}</p>
             <div className="flex items-center justify-center gap-2 mt-5">
-              <button
-                onClick={restart}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 hover:bg-primary-100 cursor-pointer"
-              >
-                הוספת פעילות נוספת
-              </button>
+              {!editing && (
+                <button
+                  onClick={restart}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 hover:bg-primary-100 cursor-pointer"
+                >
+                  הוספת פעילות נוספת
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-primary-600 hover:opacity-90 cursor-pointer"
@@ -225,22 +246,30 @@ export const ActivityWizard: React.FC<Props> = ({ viewer, existing, onClose, onS
                   {i > 0 && <span className="h-px w-4 bg-slate-200 shrink-0" />}
                   <button
                     type="button"
-                    onClick={() => i < step && setStep(i)}
-                    disabled={i > step}
+                    // Editing starts from valid data, so every step is reachable at once;
+                    // creating still walks forward one validated step at a time.
+                    onClick={() => (editing || i < step) && setStep(i)}
+                    disabled={!editing && i > step}
                     className={`flex items-center gap-1.5 text-[11px] font-bold whitespace-nowrap rounded-full px-2.5 py-1 transition-colors ${
                       i === step
                         ? 'bg-primary-600 text-white'
-                        : i < step
+                        : editing || i < step
                           ? 'text-primary-700 bg-primary-50 cursor-pointer hover:bg-primary-100'
                           : 'text-slate-400'
                     }`}
                   >
                     <span
                       className={`w-4 h-4 rounded-full grid place-items-center text-[9px] ${
-                        i < step ? 'bg-primary-600 text-white' : i === step ? 'bg-white/25' : 'bg-slate-200'
+                        !editing && i < step
+                          ? 'bg-primary-600 text-white'
+                          : i === step
+                            ? 'bg-white/25'
+                            : editing
+                              ? 'bg-primary-100'
+                              : 'bg-slate-200'
                       }`}
                     >
-                      {i < step ? <i className="fa-solid fa-check" aria-hidden="true" /> : i + 1}
+                      {!editing && i < step ? <i className="fa-solid fa-check" aria-hidden="true" /> : i + 1}
                     </span>
                     {label}
                   </button>
@@ -428,7 +457,7 @@ export const ActivityWizard: React.FC<Props> = ({ viewer, existing, onClose, onS
                   onClick={save}
                   className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
                 >
-                  {saving ? 'שומר…' : 'שמירת הפעילות'}
+                  {saving ? 'שומר…' : editing ? 'שמירת השינויים' : 'שמירת הפעילות'}
                 </button>
               )}
             </div>

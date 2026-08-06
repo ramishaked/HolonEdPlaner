@@ -62,6 +62,7 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
   // not "let me edit the bank".
   const [tab, setTab] = useState<'dashboard' | 'bank'>('dashboard');
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [editing, setEditing] = useState<BankItem | null>(null);
   const [query, setQuery] = useState('');
   const [principleFilter, setPrincipleFilter] = useState<number | 'all'>('all');
   const [confirmDelete, setConfirmDelete] = useState<BankItem | null>(null);
@@ -236,14 +237,24 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
                   </div>
                 </div>
                 {item.scope === 'municipal' ? (
-                  <button
-                    onClick={() => setConfirmDelete(item)}
-                    title="הסרה מהבנק"
-                    aria-label={`הסרת ${item.title}`}
-                    className="text-slate-300 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
-                  >
-                    <i className="fa-solid fa-trash-can text-xs" />
-                  </button>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      onClick={() => setEditing(item)}
+                      title="עריכת הפעילות"
+                      aria-label={`עריכת ${item.title}`}
+                      className="text-slate-300 hover:text-primary-600 hover:bg-primary-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <i className="fa-solid fa-pen-to-square text-xs" />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(item)}
+                      title="הסרה מהבנק"
+                      aria-label={`הסרת ${item.title}`}
+                      className="text-slate-300 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <i className="fa-solid fa-trash-can text-xs" />
+                    </button>
+                  </div>
                 ) : (
                   /* School-owned rows are visible to the city admin for oversight, but
                      only their own school may change them — don't offer a doomed action. */
@@ -315,11 +326,12 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
       </p>
       </>)}
 
-      {wizardOpen && (
+      {(wizardOpen || editing) && (
         <ActivityWizard
           viewer={viewer}
           existing={bankItems}
-          onClose={() => setWizardOpen(false)}
+          editing={editing ?? undefined}
+          onClose={() => { setWizardOpen(false); setEditing(null); }}
           onSaved={reload}
         />
       )}

@@ -13,3 +13,9 @@ export interface AdminViewer {
   municipalityId: string | null;
   role: 'city_admin' | 'super_admin';
 }
+
+/** What every admin write returns. `error` is Hebrew, meant to be shown as-is. */
+export interface SaveResult {
+  ok: boolean;
+  error?: string;
+}
