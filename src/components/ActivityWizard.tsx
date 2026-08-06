@@ -4,7 +4,8 @@ import { useAudiences } from '../lib/audiences';
 import type { BankItem } from '../lib/activityBank';
 import {
   createActivity,
-  createActivities,
+  matchImportRow,
+  upsertActivities,
   draftFromBankItem,
   emptyDraft,
   findSimilar,
@@ -441,6 +442,7 @@ export const ActivityWizard: React.FC<Props> = ({ viewer, existing, editing, onC
 // ---- bulk import ------------------------------------------------------------
 
 const IMPORT_FIELDS: { key: keyof ActivityDraft | 'principles'; label: string; required?: boolean }[] = [
+  { key: 'slug', label: 'מזהה (לעדכון פעילות קיימת)' },
   { key: 'title', label: 'שם הפעולה', required: true },
   { key: 'short', label: 'מטרת העל' },
   { key: 'description', label: 'הסבר קצר על הפעולה' },
@@ -457,6 +459,16 @@ const BulkImport: React.FC<{
   onClose: () => void;
 }> = ({ viewer, existing, onSaved, onClose }) => {
   const { principles, orderToId } = usePrinciples();
+
+  // Grouped from the copy already passed in, not a second fetch — new rows only need
+  // it to be ranked after the existing ones in their principle group.
+  const bank = useMemo(() => {
+    const out: Record<number, BankItem[]> = {};
+    for (const item of existing) {
+      if (item.isActive) for (const p of item.principles) (out[p] ??= []).push(item);
+    }
+    return out;
+  }, [existing]);
 
   const [sheet, setSheet] = useState<ParsedSheet | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -533,6 +545,7 @@ const BulkImport: React.FC<{
       const key = get(row, 'principles') || '—';
       const draft: ActivityDraft = {
         ...emptyDraft(),
+        slug: get(row, 'slug'),
         title: get(row, 'title'),
         short: get(row, 'short'),
         description: get(row, 'description'),
@@ -545,23 +558,48 @@ const BulkImport: React.FC<{
     });
   }, [sheet, mapping, principleMap]);
 
+  /** Which draft fields the admin actually mapped — an update writes only those. */
+  const mappedFields = useMemo(
+    () => new Set(Object.keys(mapping).filter((f) => mapping[f])),
+    [mapping],
+  );
+
   const rowState = useMemo(
     () =>
-      drafts.map((d) => ({
-        draft: d,
-        hits: findSimilar(d.title, existing),
-        ready: d.title.trim().length > 1 && d.principles.length > 0,
-      })),
+      drafts.map((d) => {
+        const { match, ambiguous } = matchImportRow(d, existing);
+        return {
+          draft: d,
+          match,
+          ambiguous: !!ambiguous,
+          // A row updating itself is not a duplicate.
+          hits: match ? [] : findSimilar(d.title, existing),
+          ready:
+            !ambiguous &&
+            d.title.trim().length > 1 &&
+            // An update may legitimately carry no principle column at all.
+            (!!match || d.principles.length > 0),
+        };
+      }),
     [drafts, existing],
   );
 
-  const readyCount = rowState.filter((r) => r.ready).length;
+  const readyRows = rowState.filter((r) => r.ready);
+  const createCount = readyRows.filter((r) => !r.match).length;
+  const updateCount = readyRows.filter((r) => r.match).length;
+  const readyCount = readyRows.length;
   const dupCount = rowState.filter((r) => r.hits.length).length;
 
   const runImport = async () => {
     setImporting(true);
     // Look-alikes are imported too — the warning is advisory, per the product decision.
-    const r = await createActivities(rowState.filter((s) => s.ready).map((s) => s.draft), viewer, orderToId);
+    const r = await upsertActivities(
+      readyRows.map((s) => ({ draft: s.draft, match: s.match })),
+      viewer,
+      orderToId,
+      bank,
+      { fields: mappedFields, linkPrinciples: !!mapping.principles },
+    );
     setImporting(false);
     setResult(r);
     onSaved();
@@ -571,7 +609,16 @@ const BulkImport: React.FC<{
     return (
       <div className="p-8 text-center">
         <i className="fa-solid fa-circle-check text-4xl text-emerald-500" aria-hidden="true" />
-        <p className="font-bold text-slate-800 mt-3">{result.created} פעילויות נוספו לבנק.</p>
+        <p className="font-bold text-slate-800 mt-3">
+          {result.created} פעילויות נוספו לבנק
+          {result.updated > 0 && ` · ${result.updated} עודכנו`}.
+        </p>
+        {result.updated > 0 && (
+          <p className="text-[11px] text-slate-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
+            עדכון משנה רק את התוכן — הסדר בבנק ומה שהוסתר נשמרים. מחיקת שורה מהגיליון
+            אינה מוחקת אותה מהבנק.
+          </p>
+        )}
         {!!result.failed.length && (
           <div className="text-right bg-rose-50 border border-rose-100 rounded-xl p-3 mt-4">
             <p className="text-xs font-bold text-rose-700">{result.failed.length} שורות לא נשמרו:</p>
@@ -722,8 +769,12 @@ const BulkImport: React.FC<{
             <div className="bg-slate-50 px-3 py-2 flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-600">תצוגה מקדימה</span>
               <span className="text-[11px] text-slate-500">
-                {readyCount} מוכנות לייבוא
+                {createCount} חדשות
+                {updateCount > 0 && <span className="text-sky-700"> · {updateCount} עדכונים</span>}
                 {dupCount > 0 && <span className="text-amber-700"> · {dupCount} דומות לקיימות</span>}
+                {rowState.length > readyCount && (
+                  <span className="text-rose-600"> · {rowState.length - readyCount} לא ייובאו</span>
+                )}
               </span>
             </div>
             <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
@@ -733,9 +784,11 @@ const BulkImport: React.FC<{
                     className={`fa-solid mt-0.5 text-[10px] ${
                       !s.ready
                         ? 'fa-circle-xmark text-rose-400'
-                        : s.hits.length
-                          ? 'fa-triangle-exclamation text-amber-500'
-                          : 'fa-circle-check text-emerald-500'
+                        : s.match
+                          ? 'fa-rotate text-sky-500'
+                          : s.hits.length
+                            ? 'fa-triangle-exclamation text-amber-500'
+                            : 'fa-circle-check text-emerald-500'
                     }`}
                     aria-hidden="true"
                   />
@@ -743,7 +796,18 @@ const BulkImport: React.FC<{
                     <p className="text-xs font-bold text-slate-700 truncate">
                       {s.draft.title || <span className="text-slate-400">(ללא שם — לא תיובא)</span>}
                     </p>
-                    {!s.ready && s.draft.title && (
+                    {s.ready && s.match && (
+                      <p className="text-[10px] text-sky-700">
+                        מעדכנת פעילות קיימת
+                        {s.match.title !== s.draft.title && ` — "${s.match.title}"`}
+                      </p>
+                    )}
+                    {s.ambiguous && (
+                      <p className="text-[10px] text-rose-600">
+                        שם דו-משמעי — קיימות כבר שתי פעילויות בשם הזה. לא תיובא.
+                      </p>
+                    )}
+                    {!s.ready && !s.ambiguous && s.draft.title && (
                       <p className="text-[10px] text-rose-600">לא שויך עיקרון — בחרו עיקרון ברירת מחדל.</p>
                     )}
                     {!!s.hits.length && (
@@ -769,7 +833,11 @@ const BulkImport: React.FC<{
               onClick={runImport}
               className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
-              {importing ? 'מייבא…' : `ייבוא ${readyCount} פעילויות`}
+              {importing
+                ? 'מייבא…'
+                : updateCount
+                  ? `ייבוא — ${createCount} חדשות ו-${updateCount} עדכונים`
+                  : `ייבוא ${createCount} פעילויות`}
             </button>
           </div>
         </>

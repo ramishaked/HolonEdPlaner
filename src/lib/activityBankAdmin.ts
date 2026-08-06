@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { AdminViewer, SaveResult } from './adminAuth';
 import type { BankItem } from './activityBank';
+import { normalizeTitle } from './similarity';
 export { normalizeTitle, similarity, findSimilar, type DuplicateHit } from './similarity';
 export type { SaveResult } from './adminAuth';
 import type { TaskSource } from '../types';
@@ -16,6 +17,8 @@ import type { TaskSource } from '../types';
 export interface ActivityDraft {
   /** Present when editing an existing item. */
   id?: string;
+  /** Only set by the spreadsheet import — the stable key it matches rows on. */
+  slug?: string;
   title: string;
   short: string;
   description: string;
@@ -78,6 +81,35 @@ const contentColumns = (draft: ActivityDraft) => ({
   audience_note: draft.audienceNote.trim(),
 });
 
+type ContentColumns = ReturnType<typeof contentColumns>;
+
+/**
+ * Only the columns whose sheet column the admin actually mapped.
+ *
+ * A spreadsheet update must not blank the fields it does not carry: the import builds
+ * every row from `emptyDraft()`, so an unmapped column arrives as '' and a full write
+ * would silently erase it. A mapped-but-empty cell *is* written empty — that is how a
+ * field gets cleared.
+ */
+const contentColumnsFor = (draft: ActivityDraft, fields?: Set<string>) => {
+  const all = contentColumns(draft);
+  if (!fields) return all;
+
+  const pick = <K extends keyof ContentColumns>(field: string, key: K) =>
+    (fields.has(field) ? { [key]: all[key] } : {}) as Partial<Pick<ContentColumns, K>>;
+
+  return {
+    ...pick('title', 'title'),
+    ...pick('short', 'short'),
+    ...pick('description', 'description'),
+    ...pick('metrics', 'metrics'),
+    ...pick('contact', 'contact'),
+    ...pick('audienceNote', 'audience_note'),
+    ...pick('source', 'source'),
+    ...pick('audiences', 'audiences'),
+  };
+};
+
 /** Opaque and content-independent, so renaming an activity never moves its key. */
 const slugForId = (id: string) => `act_${id.replace(/-/g, '').slice(0, 12)}`;
 
@@ -137,21 +169,73 @@ export async function createActivity(
 
 export interface BulkResult {
   created: number;
+  updated: number;
   failed: { row: number; title: string; error: string }[];
 }
 
-/** Insert many activities; a row that fails does not abort the rest. */
-export async function createActivities(
-  drafts: ActivityDraft[],
+/** What an imported row resolved to before anything is written. */
+export interface ImportMatch {
+  match: BankItem | null;
+  /** Two existing activities share this title — the importer refuses to guess. */
+  ambiguous?: boolean;
+}
+
+/**
+ * Decide whether a sheet row updates an existing activity or creates a new one.
+ *
+ * The slug wins when the sheet carries one, because the title is precisely the field
+ * most likely to be corrected in the sheet — matching on it alone would either miss
+ * the row or, worse, overwrite a different one. A slug the bank does not know is
+ * treated as a new row rather than an error; a duplicate title is refused outright.
+ */
+export function matchImportRow(draft: ActivityDraft, existing: BankItem[]): ImportMatch {
+  const municipal = existing.filter((i) => i.scope === 'municipal');
+
+  const slug = draft.slug?.trim();
+  if (slug) return { match: municipal.find((i) => i.slug === slug) ?? null };
+
+  const wanted = normalizeTitle(draft.title);
+  if (!wanted) return { match: null };
+
+  const byTitle = municipal.filter((i) => normalizeTitle(i.title) === wanted);
+  if (byTitle.length > 1) return { match: null, ambiguous: true };
+  return { match: byTitle[0] ?? null };
+}
+
+export interface ImportRow {
+  draft: ActivityDraft;
+  match: BankItem | null;
+}
+
+/**
+ * Import many rows: matched ones are updated in place, the rest created. A row that
+ * fails does not abort the rest.
+ *
+ * `fields` is the set of draft fields the admin actually mapped — an update writes
+ * only those. `linkPrinciples` is false when the sheet has no principle column, in
+ * which case existing links are left alone.
+ */
+export async function upsertActivities(
+  rows: ImportRow[],
   viewer: AdminViewer,
   orderToId: Record<number, string>,
-  bank: Record<number, BankItem[]> = {},
+  bank: Record<number, BankItem[]>,
+  opts: { fields: Set<string>; linkPrinciples: boolean },
 ): Promise<BulkResult> {
-  const result: BulkResult = { created: 0, failed: [] };
+  const result: BulkResult = { created: 0, updated: 0, failed: [] };
   // Each new row lands after the previous one instead of all sharing a rank.
   const nextByPrinciple: Record<number, number> = {};
 
-  for (const [i, draft] of drafts.entries()) {
+  for (const [i, row] of rows.entries()) {
+    const { draft, match } = row;
+
+    if (match) {
+      const r = await updateActivity({ ...draft, id: match.key }, orderToId, opts);
+      if (r.ok) result.updated++;
+      else result.failed.push({ row: i + 1, title: draft.title, error: r.error ?? 'שגיאה' });
+      continue;
+    }
+
     const group = draft.principles[0];
     nextByPrinciple[group] ??= nextPositionFor(draft.principles, bank);
     const r = await createActivity(draft, viewer, orderToId, nextByPrinciple[group]++);
@@ -171,18 +255,23 @@ export async function createActivities(
 export async function updateActivity(
   draft: ActivityDraft & { id: string },
   orderToId: Record<number, string>,
+  opts: { fields?: Set<string>; linkPrinciples?: boolean } = {},
 ): Promise<SaveResult> {
+  // The spreadsheet path may carry no principle column at all; a correction sheet must
+  // not strip every link and make the activity invisible.
+  const linkPrinciples = opts.linkPrinciples !== false;
   const want = new Set(draft.principles.map((o) => orderToId[o]).filter(Boolean));
   // An activity linked to no principle is invisible everywhere (see fetchActivityBank),
   // so clearing the last link is a silent delete. Refuse before writing anything.
-  if (!want.size) return { ok: false, error: 'יש לבחור לפחות עיקרון אחד.' };
+  if (linkPrinciples && !want.size) return { ok: false, error: 'יש לבחור לפחות עיקרון אחד.' };
 
   const { error } = await supabase
     .from('activity_bank_items')
-    .update(contentColumns(draft))
+    .update(contentColumnsFor(draft, opts.fields))
     .eq('id', draft.id);
 
   if (error) return { ok: false, error: error.message };
+  if (!linkPrinciples) return { ok: true };
 
   // Read the links back rather than trusting the client's copy — a second admin tab
   // may have changed them since this wizard opened.
