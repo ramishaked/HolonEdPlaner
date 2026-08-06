@@ -75,7 +75,11 @@ export const JourneyRail: React.FC<JourneyRailProps> = ({ steps, currentStep, on
                   {step.id === 'assess' && assessProgress && (
                     <span
                       className={`text-xs font-mono px-1.5 py-0.5 rounded-full ${
-                        isCurrent ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-600'
+                        complete
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : isCurrent
+                            ? 'bg-white/20 text-white'
+                            : 'bg-rose-100 text-rose-600'
                       }`}
                     >
                       {assessProgress.done}/{assessProgress.total}
@@ -91,11 +95,11 @@ export const JourneyRail: React.FC<JourneyRailProps> = ({ steps, currentStep, on
         </ol>
       </div>
 
-      {/* Persistent overall progress — a calm, monochrome segmented bar. Each
-          principle owns one segment that fills in the brand color once mapped,
-          so the principal still sees principle-by-principle progress. All
-          segments turn emerald at 100%. A short, count-based line encourages. */}
-      {assessProgress && (
+      {/* Mapping progress — a calm, monochrome segmented bar. Shown ONLY on the
+          assess step: elsewhere the step title's "X/total" badge already carries
+          the signal, so the full bar would be redundant. Each principle owns one
+          segment that fills once mapped; all turn emerald at 100%. */}
+      {assessProgress && currentStep === 'assess' && (
         <div className="border-t border-slate-200">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-1.5 flex items-center gap-3">
             <span className="text-xs font-bold text-slate-500 whitespace-nowrap shrink-0">

@@ -96,7 +96,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
               <text
                 x={cx}
                 y={cy - (r * scoreLevel) / 4 + 4}
-                className="text-xs font-mono fill-slate-400 font-medium select-none"
+                className="text-xs fill-slate-400 font-medium select-none"
                 textAnchor="middle"
               >
                 {scoreLevel}
@@ -184,7 +184,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
                 x={lx}
                 y={ly + 6}
                 textAnchor="middle"
-                className="text-xs font-mono font-bold select-none"
+                className="text-xs font-bold select-none"
                 fill={p.accentColor}
               >
                 רמה {score.toFixed(1)}

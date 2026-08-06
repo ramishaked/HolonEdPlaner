@@ -144,7 +144,7 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
 
         {!collapsed && scoreLabel !== undefined && (
           <span
-            className={`text-[0.65rem] font-mono px-1.5 py-0.5 rounded-full shrink-0 ${
+            className={`text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
               active
                 ? 'bg-white/20 text-white'
                 : assessed
@@ -157,7 +157,7 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
         )}
 
         {collapsed && scoreLabel !== undefined && (
-          <span className={`text-[0.6rem] font-mono leading-none ${assessed ? 'text-slate-400' : 'text-amber-500'}`}>
+          <span className={`text-[0.6rem] font-semibold leading-none ${assessed ? 'text-slate-400' : 'text-amber-500'}`}>
             {scoreLabel}
           </span>
         )}
