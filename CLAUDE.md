@@ -86,6 +86,7 @@ localStorage + ללא auth. הפרוד (`holon-edplaner.vercel.app`) עדיין 
 - **`SchoolsTab` הוא היחיד שלא כותב ישירות ל-Supabase** — ראה "ניהול בתי ספר" למטה.
 - `useActivityBank()`/`useAudiences()` מוחזקים **ב-`AdminArea`** ומועברים ללשוניות, כדי שמוני הכותרת והלשוניות יראו עותק אחד.
 - **אין מחיקה קשה של עיקרון** — `plan_*` ו-`activity_bank_item_principles` תלויים ב-`principles(id)` עם `on delete cascade`. הסתרה = `is_active=false` + חניה ב-`order_index` 90+ ומספור מחדש של הנותרים (מוסכמת `20260805090000`).
+- **`activity_bank_items.position` הוא דירוג בתוך עיקרון**, לא מספר גלובלי — כך זרעה המיגרציה של הבנק וכך `moveBankItem` שומר עליו. ה-UI מציע סידור רק כשהרשימה הנראית **היא** קבוצת העיקרון (סינון לעיקרון אחד, בלי חיפוש).
 - **גם בבנק אין מחיקה** — `setActivityActive` בלבד. `plan_activities.bank_key` הוא טקסט בלי FK, אז DELETE לא עושה cascade — אבל הוא כן מוחק את התיעוד של מי שאימץ: שורת האימוץ שורדת עם מפתח שלא מצביע לכלום, `municipalStats` לא סופר אותה כפריט בנק ולא כיוזמה ייחודית, והדשבורד מפיל אותה בשקט. לכן `AdminArea` מחזיק `useActivityBank({ includeInactive: true })` ומעביר אותו ללשוניות ולדשבורד; `byPrinciple` תמיד פעילים בלבד.
 - **`SettingsView` הוא רק של בית הספר** — אין בו שום דלת ניהול.
 - **נוסחת הציון ב-`src/lib/scoring.ts` בלבד.** `scoresFor` נותן 1.0 לעיקרון שלא מופה — זו נוחות תצוגה לרדאר ו**אסור** לממצע אותה בין בתי ספר. לאגרגציה יש `mappedScores`, והדשבורד מציג תמיד את מספר בתי הספר שמאחורי כל ממוצע.

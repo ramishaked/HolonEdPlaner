@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { usePrinciples } from '../../lib/PrinciplesContext';
 import { audienceLabel, type useAudiences } from '../../lib/audiences';
 import { type useActivityBank, type BankItem } from '../../lib/activityBank';
-import { setActivityActive } from '../../lib/activityBankAdmin';
+import { moveBankItem, setActivityActive } from '../../lib/activityBankAdmin';
 import type { AdminViewer } from '../../lib/adminAuth';
 import { sourceMeta } from '../../planBank';
 import { ActivityWizard } from '../ActivityWizard';
@@ -51,6 +51,14 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
     );
   }, [active, bank, principleFilter, query]);
 
+  /**
+   * Ordering is only offered when the visible list IS the principle group being
+   * ordered. Under a search, "swap with my neighbour" would write a rank that lands
+   * the row somewhere the admin cannot see — better to withhold the control than to
+   * move something invisibly.
+   */
+  const canReorder = principleFilter !== 'all' && !query.trim();
+
   const run = async (fn: () => Promise<{ ok: boolean; error?: string }>, success: string) => {
     setBusy(true);
     const r = await fn();
@@ -60,6 +68,11 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
     reload();
     return true;
   };
+
+  const move = (item: BankItem, target: -1 | 1 | 'top') =>
+    // `filtered` is the principle group in display order — exactly what the reorder
+    // needs, which is why the controls only appear when that is true.
+    run(() => moveBankItem(item.key, target, filtered), 'סדר הפעילויות עודכן.');
 
   return (
     <>
@@ -103,16 +116,48 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
 
         <p className="text-[11px] text-slate-400">
           {loading ? 'טוען…' : `מוצגות ${filtered.length} מתוך ${active.length} פעילויות`}
+          {!loading && !canReorder && ' · לשינוי הסדר — בחרו עיקרון וסננו בלי חיפוש'}
+          {!loading && canReorder && ' · הסדר כאן הוא הסדר שבתי הספר רואים'}
         </p>
 
         <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
           {!loading && !filtered.length && (
             <p className="text-xs text-slate-400 text-center py-8">לא נמצאו פעילויות מתאימות.</p>
           )}
-          {filtered.map((item) => {
+          {filtered.map((item, i) => {
             const th = sourceMeta(item.source);
+            const orderable = canReorder && item.scope === 'municipal';
             return (
               <div key={item.key} className="p-3.5 flex items-start gap-3">
+                {orderable && (
+                  <div className="flex flex-col shrink-0 pt-0.5">
+                    <button
+                      onClick={() => move(item, -1)}
+                      disabled={i === 0 || busy}
+                      aria-label={`הזזת ${item.title} למעלה`}
+                      className="text-slate-300 hover:text-slate-600 disabled:opacity-30 disabled:cursor-default p-0.5 cursor-pointer"
+                    >
+                      <i className="fa-solid fa-chevron-up text-[10px]" />
+                    </button>
+                    <button
+                      onClick={() => move(item, 'top')}
+                      disabled={i === 0 || busy}
+                      title="לראש הרשימה"
+                      aria-label={`העברת ${item.title} לראש הרשימה`}
+                      className="text-slate-300 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-default p-0.5 cursor-pointer"
+                    >
+                      <i className="fa-solid fa-angles-up text-[10px]" />
+                    </button>
+                    <button
+                      onClick={() => move(item, 1)}
+                      disabled={i === filtered.length - 1 || busy}
+                      aria-label={`הזזת ${item.title} למטה`}
+                      className="text-slate-300 hover:text-slate-600 disabled:opacity-30 disabled:cursor-default p-0.5 cursor-pointer"
+                    >
+                      <i className="fa-solid fa-chevron-down text-[10px]" />
+                    </button>
+                  </div>
+                )}
                 <span className="w-1 self-stretch rounded-full shrink-0" style={{ backgroundColor: th.accent }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">

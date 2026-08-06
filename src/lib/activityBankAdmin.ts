@@ -219,6 +219,45 @@ export async function updateActivity(
 }
 
 /**
+ * Move one activity within its principle group.
+ *
+ * `group` is the list the admin is looking at — active municipal items of one
+ * principle, in display order. Only rows whose rank actually changed are written;
+ * `position` carries no unique constraint, so there is no temporary-value dance.
+ */
+export async function moveBankItem(
+  id: string,
+  target: -1 | 1 | 'top',
+  group: BankItem[],
+): Promise<SaveResult> {
+  const i = group.findIndex((item) => item.key === id);
+  if (i < 0) return { ok: true };
+
+  const next = [...group];
+  if (target === 'top') {
+    if (i === 0) return { ok: true };
+    next.splice(0, 0, ...next.splice(i, 1));
+  } else {
+    const j = i + target;
+    if (j < 0 || j >= next.length) return { ok: true };
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+
+  for (const [index, item] of next.entries()) {
+    const position = index + 1;
+    if (item.position === position) continue;
+
+    const { error } = await supabase
+      .from('activity_bank_items')
+      .update({ position })
+      .eq('id', item.key);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  return { ok: true };
+}
+
+/**
  * Hide or restore an activity. There is deliberately no hard delete.
  *
  * `plan_activities.bank_key` is plain text with no FK, so a DELETE does not cascade —
