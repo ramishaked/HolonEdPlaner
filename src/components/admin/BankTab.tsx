@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { usePrinciples } from '../../lib/PrinciplesContext';
 import { audienceLabel, type useAudiences } from '../../lib/audiences';
 import { type useActivityBank, type BankItem } from '../../lib/activityBank';
-import { deleteActivity } from '../../lib/activityBankAdmin';
+import { setActivityActive } from '../../lib/activityBankAdmin';
 import type { AdminViewer } from '../../lib/adminAuth';
 import { sourceMeta } from '../../planBank';
 import { ActivityWizard } from '../ActivityWizard';
@@ -32,12 +32,16 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
   const [editing, setEditing] = useState<BankItem | null>(null);
   const [query, setQuery] = useState('');
   const [principleFilter, setPrincipleFilter] = useState<number | 'all'>('all');
-  const [confirmDelete, setConfirmDelete] = useState<BankItem | null>(null);
+  const [confirmHide, setConfirmHide] = useState<BankItem | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // `bank` holds active items only; the hidden ones live in `all` and are listed apart.
+  const active = useMemo(() => bankItems.filter((i) => i.isActive), [bankItems]);
+  const hidden = useMemo(() => bankItems.filter((i) => !i.isActive), [bankItems]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const base = principleFilter === 'all' ? bankItems : (bank[principleFilter] ?? []);
+    const base = principleFilter === 'all' ? active : (bank[principleFilter] ?? []);
     if (!q) return base;
     return base.filter(
       (i) =>
@@ -45,16 +49,16 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
         i.short.toLowerCase().includes(q) ||
         i.description.toLowerCase().includes(q),
     );
-  }, [bankItems, bank, principleFilter, query]);
+  }, [active, bank, principleFilter, query]);
 
-  const remove = async (item: BankItem) => {
+  const run = async (fn: () => Promise<{ ok: boolean; error?: string }>, success: string) => {
     setBusy(true);
-    const r = await deleteActivity(item.key);
+    const r = await fn();
     setBusy(false);
-    setConfirmDelete(null);
-    if (!r.ok) { onNotice(`המחיקה נכשלה: ${r.error}`); return; }
-    onNotice(`"${item.title}" הוסרה מהבנק העירוני.`);
+    if (!r.ok) { onNotice(`הפעולה נכשלה: ${r.error}`); return false; }
+    onNotice(success);
     reload();
+    return true;
   };
 
   return (
@@ -98,7 +102,7 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
         </div>
 
         <p className="text-[11px] text-slate-400">
-          {loading ? 'טוען…' : `מוצגות ${filtered.length} מתוך ${bankItems.length} פעילויות`}
+          {loading ? 'טוען…' : `מוצגות ${filtered.length} מתוך ${active.length} פעילויות`}
         </p>
 
         <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
@@ -147,12 +151,12 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
                       <i className="fa-solid fa-pen-to-square text-xs" />
                     </button>
                     <button
-                      onClick={() => setConfirmDelete(item)}
-                      title="הסרה מהבנק"
-                      aria-label={`הסרת ${item.title}`}
+                      onClick={() => setConfirmHide(item)}
+                      title="הסתרה מבתי הספר"
+                      aria-label={`הסתרת ${item.title}`}
                       className="text-slate-300 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
                     >
-                      <i className="fa-solid fa-trash-can text-xs" />
+                      <i className="fa-solid fa-eye-slash text-xs" />
                     </button>
                   </div>
                 ) : (
@@ -169,6 +173,34 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
             );
           })}
         </div>
+
+        {!!hidden.length && (
+          <div className="space-y-2 pt-1">
+            <p className="text-[11px] font-bold text-slate-400">
+              לא מוצגות לבתי הספר — תוכניות שכבר לקחו אותן לא נפגעו
+            </p>
+            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-56 overflow-y-auto">
+              {hidden.map((item) => (
+                <div key={item.key} className="p-3 flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-slate-500">{item.title}</p>
+                    <p className="text-[11px] text-slate-400">{item.short}</p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      run(() => setActivityActive(item.key, true), `"${item.title}" הוחזרה לבתי הספר.`)
+                    }
+                    disabled={busy}
+                    className="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg cursor-pointer shrink-0"
+                  >
+                    <i className="fa-solid fa-rotate-left ml-1.5 text-[10px]" aria-hidden="true" />
+                    החזרה
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Section>
 
       {(wizardOpen || editing) && (
@@ -181,17 +213,28 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
         />
       )}
 
-      {confirmDelete && (
+      {confirmHide && (
         <ConfirmDialog
-          title="הסרת פעילות מהבנק"
-          confirmLabel="הסרה"
+          title="הסתרת פעילות מבתי הספר"
+          confirmLabel="הסתרה"
+          tone="neutral"
           busy={busy}
-          onConfirm={() => remove(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
+          onConfirm={async () => {
+            const ok = await run(
+              () => setActivityActive(confirmHide.key, false),
+              `"${confirmHide.title}" הוסתרה מבתי הספר.`,
+            );
+            if (ok) setConfirmHide(null);
+          }}
+          onCancel={() => setConfirmHide(null)}
         >
           <p>
-            הפעילות <strong className="text-slate-800">{confirmDelete.title}</strong> תוסר מהבנק
-            ולא תופיע יותר לבתי הספר. תוכניות שכבר הוסיפו אותה לא ייפגעו.
+            הפעילות <strong className="text-slate-800">{confirmHide.title}</strong> תרד מבנק
+            הפעילויות ולא תוצע יותר לבתי הספר.
+          </p>
+          <p>
+            תוכניות שכבר הוסיפו אותה לא ייפגעו, והתיעוד העירוני של מי שאימץ אותה נשמר.
+            אין כאן מחיקה — אפשר להחזיר אותה בכל רגע.
           </p>
         </ConfirmDialog>
       )}

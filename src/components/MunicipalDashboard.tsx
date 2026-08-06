@@ -42,9 +42,12 @@ const Panel: React.FC<{ icon: string; title: string; subtitle?: string; children
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' }) : '—';
 
-export const MunicipalDashboard: React.FC = () => {
+export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityBank> }> = ({
+  bank,
+}) => {
   const { principles, orderToId } = usePrinciples();
-  const { all: bankItems } = useActivityBank();
+  // Held by AdminArea, hidden items included — see uptakeNamed for why that matters.
+  const { all: bankItems } = bank;
 
   const idToOrder = useMemo(() => {
     const map: Record<string, number> = {};
@@ -65,12 +68,15 @@ export const MunicipalDashboard: React.FC = () => {
   }, [stats]);
 
   const uptakeNamed = useMemo(() => {
+    // Hidden items are named here on purpose: an activity the city retired was still
+    // adopted by N schools, and dropping it would quietly rewrite that history.
     const byKey = new Map(bankItems.map((i) => [i.key, i]));
     const taken = (stats?.uptake ?? [])
       .map((u) => ({ ...u, item: byKey.get(u.bankKey) }))
       .filter((u) => u.item);
     const takenKeys = new Set(taken.map((t) => t.bankKey));
-    const untouched = bankItems.filter((i) => !takenKeys.has(i.key));
+    // "Nobody picked it" is a call to action, so only offerable activities belong here.
+    const untouched = bankItems.filter((i) => i.isActive && !takenKeys.has(i.key));
     return { taken, untouched };
   }, [stats, bankItems]);
 
@@ -232,9 +238,16 @@ export const MunicipalDashboard: React.FC = () => {
               {!uptakeNamed.taken.length && (
                 <p className="text-xs text-slate-400 text-center py-6">אף פעילות מהבנק לא נלקחה עדיין.</p>
               )}
-              {uptakeNamed.taken.slice(0, 12).map((u) => (
+              {uptakeNamed.taken.map((u) => (
                 <div key={u.bankKey} className="p-2.5 flex items-center justify-between gap-3">
-                  <p className="text-xs text-slate-700 truncate">{u.item!.title}</p>
+                  <p className="text-xs text-slate-700 truncate">
+                    {u.item!.title}
+                    {!u.item!.isActive && (
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full mr-1.5">
+                        מוסתרת
+                      </span>
+                    )}
+                  </p>
                   <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full shrink-0">
                     {u.schools} בתי ספר
                   </span>
@@ -251,7 +264,7 @@ export const MunicipalDashboard: React.FC = () => {
               {!uptakeNamed.untouched.length && (
                 <p className="text-xs text-slate-400 text-center py-6">כל פעילויות הבנק נלקחו לפחות פעם אחת.</p>
               )}
-              {uptakeNamed.untouched.slice(0, 20).map((i) => (
+              {uptakeNamed.untouched.map((i) => (
                 <div key={i.key} className="p-2.5">
                   <p className="text-xs text-slate-600 truncate">{i.title}</p>
                 </div>

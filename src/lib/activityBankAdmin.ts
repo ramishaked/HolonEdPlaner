@@ -78,24 +78,44 @@ const contentColumns = (draft: ActivityDraft) => ({
   audience_note: draft.audienceNote.trim(),
 });
 
+/** Opaque and content-independent, so renaming an activity never moves its key. */
+const slugForId = (id: string) => `act_${id.replace(/-/g, '').slice(0, 12)}`;
+
+/**
+ * Rank for a brand-new activity: last inside its first principle group. Computed from
+ * the bank already in memory — the alternative was the old hardcoded 999, which piled
+ * every new item onto the same number and made `position` meaningless.
+ */
+export function nextPositionFor(principleOrders: number[], bank: Record<number, BankItem[]>) {
+  const group = bank[principleOrders[0]] ?? [];
+  return Math.max(0, ...group.map((i) => i.position)) + 1;
+}
+
 /** Insert one activity plus its principle links. */
 export async function createActivity(
   draft: ActivityDraft,
   viewer: AdminViewer,
   orderToId: Record<number, string>,
+  position = 1,
 ): Promise<SaveResult> {
   const principleIds = draft.principles.map((o) => orderToId[o]).filter(Boolean);
   if (!principleIds.length) return { ok: false, error: 'יש לבחור לפחות עיקרון אחד.' };
 
+  // The id is minted here so the slug can be derived from it in the same insert,
+  // instead of a follow-up update that could fail and leave a keyless row.
+  const id = crypto.randomUUID();
+
   const { data, error } = await supabase
     .from('activity_bank_items')
     .insert({
+      id,
       ...ownerColumns(viewer),
       ...contentColumns(draft),
       category: '',
-      slug: '',
-      position: 999, // new items sort after the curated list
+      slug: slugForId(id),
+      position,
       is_active: true,
+      created_by: viewer.userId,
     })
     .select('id')
     .single();
@@ -125,11 +145,16 @@ export async function createActivities(
   drafts: ActivityDraft[],
   viewer: AdminViewer,
   orderToId: Record<number, string>,
+  bank: Record<number, BankItem[]> = {},
 ): Promise<BulkResult> {
   const result: BulkResult = { created: 0, failed: [] };
+  // Each new row lands after the previous one instead of all sharing a rank.
+  const nextByPrinciple: Record<number, number> = {};
 
   for (const [i, draft] of drafts.entries()) {
-    const r = await createActivity(draft, viewer, orderToId);
+    const group = draft.principles[0];
+    nextByPrinciple[group] ??= nextPositionFor(draft.principles, bank);
+    const r = await createActivity(draft, viewer, orderToId, nextByPrinciple[group]++);
     if (r.ok) result.created++;
     else result.failed.push({ row: i + 1, title: draft.title, error: r.error ?? 'שגיאה' });
   }
@@ -193,7 +218,19 @@ export async function updateActivity(
   return { ok: true };
 }
 
-export async function deleteActivity(id: string): Promise<SaveResult> {
-  const { error } = await supabase.from('activity_bank_items').delete().eq('id', id);
+/**
+ * Hide or restore an activity. There is deliberately no hard delete.
+ *
+ * `plan_activities.bank_key` is plain text with no FK, so a DELETE does not cascade —
+ * but it does erase the city's record of who adopted the activity: the uptake row
+ * survives with a key pointing at nothing, `municipalStats` counts it as neither a
+ * bank item nor a custom one, and the dashboard drops it silently. Hiding keeps that
+ * record, and matches how principles, audiences and schools already behave.
+ */
+export async function setActivityActive(id: string, active: boolean): Promise<SaveResult> {
+  const { error } = await supabase
+    .from('activity_bank_items')
+    .update({ is_active: active })
+    .eq('id', id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }

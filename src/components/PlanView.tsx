@@ -240,6 +240,10 @@ export const PlanView: React.FC<PlanViewProps> = ({
       const q = agentQuery.trim();
       const results: BankItem[] = [1, 2, 3].map((n) => ({
         key: 'agent-' + Math.random().toString(36).slice(2, 7),
+        // Ephemeral suggestions, never rows in the bank — hence no real slug/position.
+        slug: '',
+        isActive: true,
+        position: 0,
         title: `יוזמת AI מותאמת ${n}`,
         type: 'סוכן AI',
         source: 'בית ספרי',

@@ -42,7 +42,9 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
   // Held here, not per tab: the header counters and the tabs must see the same data,
   // and a write in one tab has to refresh the counters above it.
   const audiencesState = useAudiences();
-  const bankState = useActivityBank();
+  // Hidden activities included: the console lists them so they can be restored, and
+  // the dashboard needs them to keep naming an adoption of an activity since hidden.
+  const bankState = useActivityBank({ includeInactive: true });
   const { name: municipality } = useMunicipality();
 
   // The dashboard is the landing view: an admin arrives asking "what's going on",
@@ -74,7 +76,7 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Stat value={bankState.all.length} label="פעילויות" />
+          <Stat value={bankState.all.filter((i) => i.isActive).length} label="פעילויות" />
           <Stat value={principles.length} label="עקרונות" />
           <Stat value={audiencesState.audiences.length} label="קהלי יעד" />
           <button
@@ -91,7 +93,7 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
 
       {notice && <Notice text={notice} onClose={() => setNotice('')} />}
 
-      {tab === 'dashboard' && <MunicipalDashboard />}
+      {tab === 'dashboard' && <MunicipalDashboard bank={bankState} />}
       {tab === 'bank' && (
         <BankTab viewer={viewer} onNotice={setNotice} bank={bankState} audiences={audiencesState} />
       )}
