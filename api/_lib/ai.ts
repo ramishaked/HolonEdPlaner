@@ -1,4 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { isAuthFailure, requireUser } from "./auth.js";
+
+/**
+ * Both entry points require a signed-in user. The gate lives here rather than in the
+ * two thin wrappers (server.ts and api/ai/*.ts) so a third wrapper cannot forget it —
+ * the same discipline handleSchoolAdmin follows.
+ *
+ * A future client caller sends `Authorization: Bearer <access_token>` exactly like
+ * src/lib/schoolsAdmin.ts does.
+ */
 
 // Shared, framework-agnostic AI logic.
 // Used by both the local Express dev server (server.ts) and the Vercel
@@ -76,7 +86,13 @@ const PRINCIPLES_DICT = {
 };
 
 // Formulate introductory analysis and 3 custom clarifying questions
-export async function initiate(body: any): Promise<{ status: number; json: any }> {
+export async function initiate(
+  body: any,
+  authHeader?: string,
+): Promise<{ status: number; json: any }> {
+  const user = await requireUser(authHeader);
+  if (isAuthFailure(user)) return user;
+
   try {
     if (!process.env.GEMINI_API_KEY) {
       return { status: 500, json: { error: "GEMINI_API_KEY missing from environment" } };
@@ -183,7 +199,13 @@ export async function initiate(body: any): Promise<{ status: number; json: any }
 }
 
 // Generate the final full strategic plan based on questionnaire answers
-export async function generate(body: any): Promise<{ status: number; json: any }> {
+export async function generate(
+  body: any,
+  authHeader?: string,
+): Promise<{ status: number; json: any }> {
+  const user = await requireUser(authHeader);
+  if (isAuthFailure(user)) return user;
+
   try {
     if (!process.env.GEMINI_API_KEY) {
       return { status: 500, json: { error: "GEMINI_API_KEY missing from environment" } };

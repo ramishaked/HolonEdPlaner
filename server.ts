@@ -23,13 +23,13 @@ app.get("/api/health", (req, res) => {
 // Shared logic lives in api/_lib/ai.ts so the Vercel serverless function
 // (api/ai/initiate.ts) and this Express route stay in lockstep.
 app.post("/api/ai/initiate", async (req, res) => {
-  const { status, json } = await initiate(req.body);
+  const { status, json } = await initiate(req.body, req.headers.authorization);
   res.status(status).json(json);
 });
 
 // API Endpoint to generate the final full strategic plan based on questionnaire answers
 app.post("/api/ai/generate", async (req, res) => {
-  const { status, json } = await generate(req.body);
+  const { status, json } = await generate(req.body, req.headers.authorization);
   res.status(status).json(json);
 });
 

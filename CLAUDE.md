@@ -56,6 +56,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ההיגיון נמצא ב-`api/_lib/ai.ts` (`initiate`, `generate`). שני wrappers דקים משתמשים בו:
 - **dev:** `server.ts` (Express) מייבא ומשרת `/api/ai/*` + `/api/health`.
 - **prod (Vercel):** serverless functions ב-`api/ai/initiate.ts`, `api/ai/generate.ts`, `api/health.ts`.
+- **שתי נקודות הקצה דורשות משתמש מחובר** — `requireUser()` ב-`api/_lib/auth.ts`, שנקרא **בתוך** `initiate`/`generate` ולא ב-wrappers, כדי ש-wrapper שלישי לא יוכל לשכוח. משתמש במפתח ה-anon (לא service_role), ו**נכשל סגור** אם ההגדרה חסרה. `api/health` נשאר פתוח.
 - **ESM gotcha:** `package.json` הוא `"type":"module"` → imports יחסיים ב-`api/`/`server.ts` חייבים סיומת `.js` (למשל `./api/_lib/ai.js`), אחרת Vercel זורק `ERR_MODULE_NOT_FOUND`.
 
 ### Deploy (Vercel)

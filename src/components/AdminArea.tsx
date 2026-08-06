@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { usePrinciples } from '../lib/PrinciplesContext';
 import { useAudiences } from '../lib/audiences';
 import { useActivityBank } from '../lib/activityBank';
+import { useMunicipality } from '../lib/municipality';
 import type { AdminViewer } from '../lib/adminAuth';
 import { MunicipalDashboard } from './MunicipalDashboard';
 import { Notice, Stat, TabBar, type TabDef } from './admin/AdminChrome';
@@ -42,6 +43,7 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
   // and a write in one tab has to refresh the counters above it.
   const audiencesState = useAudiences();
   const bankState = useActivityBank();
+  const { name: municipality } = useMunicipality();
 
   // The dashboard is the landing view: an admin arrives asking "what's going on",
   // not "let me edit the bank".
@@ -65,7 +67,8 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
           <div>
             <h1 className="text-lg md:text-xl font-bold text-white leading-tight">מסך מנהל המערכת</h1>
             <p className="text-xs text-white/60 mt-0.5">
-              ניהול עירוני — חולון · שינויים כאן משפיעים על כל בתי הספר
+              {/* No name until it loads — better a shorter line than a flash of the wrong city. */}
+              ניהול עירוני{municipality && ` — ${municipality}`} · שינויים כאן משפיעים על כל בתי הספר
             </p>
           </div>
         </div>

@@ -5,6 +5,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
-  const { status, json } = await initiate(req.body);
+  const { status, json } = await initiate(req.body, req.headers.authorization);
   res.status(status).json(json);
 }
