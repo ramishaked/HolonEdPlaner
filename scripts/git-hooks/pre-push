@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# חוסם push מקרי ל-main (= דפלוי אוטומטי לפרוד ב-Vercel).
+# main מוקפא בכוונה; העבודה על phase-2. ראה "Deploy (Vercel)" ב-CLAUDE.md.
+# ריליז מכוון:  ALLOW_PROD_DEPLOY=1 git push origin main
+[ "${ALLOW_PROD_DEPLOY:-}" = "1" ] && exit 0
+blocked=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = "refs/heads/main" ] && blocked=1
+done
+[ "$blocked" = "0" ] && exit 0
+{
+  echo ""
+  echo "⛔  חסום: push ל-main = דפלוי אוטומטי לפרוד. main מוקפא בכוונה."
+  echo "    לריליז מכוון (אחרי צ'קליסט ה-Deploy ב-CLAUDE.md):"
+  echo "        ALLOW_PROD_DEPLOY=1 git push origin main"
+  echo ""
+} >&2
+exit 1

@@ -63,8 +63,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. Vercel → Project → Settings → Environment Variables (Production): להגדיר `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (anon/publishable בלבד — **לעולם לא** service_role). `GEMINI_API_KEY` כבר מוגדר ב-Production.
 2. לוודא שכל המיגרציות תחת `supabase/migrations/` הוחלו על פרויקט ה-Supabase שהפרוד מצביע אליו.
 3. `npm run lint` (tsc --noEmit) + `npm run build` נקיים; לעדכן `CHANGELOG.md`.
-4. למזג `phase-2 → main` ולדחוף → Vercel עושה auto-deploy אחד לפרוד.
+4. למזג `phase-2 → main` ולדחוף עם טוקן הריליז: `ALLOW_PROD_DEPLOY=1 git push origin main` → Vercel עושה auto-deploy אחד לפרוד.
 5. לאמת את הפרוד החי (טעינה, לוגין, טעינת עקרונות מה-DB).
+
+**שומר-סף (guard):** git hook מקומי (`pre-push`, מקור ב-`scripts/git-hooks/pre-push`) **חוסם push מקרי ל-`main`** — הדחיפה בשלב 4 דורשת `ALLOW_PROD_DEPLOY=1`. התקנה בקלון חדש: `npm run setup-hooks`. מגן מפני טעות בלבד (עוקף עם `--no-verify`).
 
 `vercel.json`: framework vite, build `vite build`.
 
