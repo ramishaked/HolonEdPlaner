@@ -18,6 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 - `npm install`
 - `npm run dev` → http://localhost:3000 (`tsx server.ts`, Vite middleware mode).
+  **שינוי ב-`api/` או ב-`server.ts` מחייב הפעלה מחדש של השרת.** Vite עושה HMR ל-`src/` בלבד; `server.ts` הוא תהליך Node שמייבא את `api/_lib/*` פעם אחת בעלייה. התסמין מבלבל: הלקוח כבר מעודכן ומצפה לשדה חדש, השרת עדיין מחזיר את הישן, והמסך מציג ערך ריק או `—` בלי שום שגיאה. אם שדה שהוספת בשרת "לא מגיע" — זו הסיבה, לפני שמחפשים באג.
 - `npm run lint` — **זו כל בדיקת ה-CI שיש**: `tsc --noEmit`. אין test runner; הרצת בדיקה בודדת לא רלוונטית. תמיד להריץ lint לפני commit.
 - `npm run build` — Vite build + esbuild bundle של השרת ל-`dist/server.cjs`.
 - `npm start` — מריץ את ה-build בפרוד (`node dist/server.cjs`).
