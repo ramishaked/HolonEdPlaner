@@ -11,6 +11,8 @@ interface OrientViewProps {
   /** Controlled selection — lifted to App so other zones can deep-link here. */
   selected: MenuSelection;
   onSelect: (id: MenuSelection) => void;
+  /** Opens settings at the unique-principles card. */
+  onAddPrinciple?: () => void;
 }
 
 /**
@@ -19,7 +21,7 @@ interface OrientViewProps {
  * Detail: a single stage that shows the "על הקיט" overview by default and swaps
  * to a principle's content on click. Selection is controlled by App.
  */
-export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selected, onSelect }) => {
+export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selected, onSelect, onAddPrinciple }) => {
   const { principles } = usePrinciples();
   const selectedPrinciple =
     typeof selected === 'number' ? principles.find((p) => p.id === selected) || null : null;
@@ -27,7 +29,7 @@ export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selecte
   return (
     <div className="flex gap-6 items-start" dir="rtl">
       {/* Master — shared principles menu (collapsible side panel) */}
-      <PrincipleMenu selected={selected} onSelect={onSelect} scores={scores} answers={answers} />
+      <PrincipleMenu selected={selected} onSelect={onSelect} scores={scores} answers={answers} onAddPrinciple={onAddPrinciple} />
 
       {/* Detail — the stage */}
       <main className="flex-1 min-w-0">

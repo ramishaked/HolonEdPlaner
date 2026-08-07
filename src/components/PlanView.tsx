@@ -20,6 +20,8 @@ interface PlanViewProps {
   setPlans: React.Dispatch<React.SetStateAction<Record<number, PrinciplePlan>>>;
   /** Jump to a principle's explanation page in the orient zone. */
   onOpenPrincipleInfo?: (id: number) => void;
+  /** Opens settings at the unique-principles card. */
+  onAddPrinciple?: () => void;
 }
 
 
@@ -81,6 +83,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
   plans,
   setPlans,
   onOpenPrincipleInfo,
+  onAddPrinciple,
 }) => {
   const { principles, displayNumbers } = usePrinciples();
   const { bank, loading: bankLoading } = useActivityBank();
@@ -332,6 +335,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
         onSelect={(id) => { if (typeof id === 'number') setActiveTab(id); }}
         scores={scores}
         answers={answers}
+        onAddPrinciple={onAddPrinciple}
         includeIntro={false}
         title="עקרונות"
         activityCounts={activityCounts}

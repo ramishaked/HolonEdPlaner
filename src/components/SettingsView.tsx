@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActionPlan, Principle, SchoolProfile } from '../types';
 import { version } from '../../package.json';
 import { usePrinciples } from '../lib/PrinciplesContext';
@@ -34,6 +34,8 @@ interface SettingsViewProps {
    * in-memory state keyed by it before the debounced saves re-attach it.
    */
   onPrincipleDeleted: (orderIndex: number) => void;
+  /** Scroll to a specific card on open — set when arriving from a link, not the gear. */
+  focusSection?: 'principles' | null;
 }
 
 const fmtSize = (bytes: number) => {
@@ -89,6 +91,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   userId,
   onPrinciplesChanged,
   onPrincipleDeleted,
+  focusSection,
 }) => {
   const logoInput = useRef<HTMLInputElement>(null);
   const filesInput = useRef<HTMLInputElement>(null);
@@ -107,6 +110,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [pendingDelete, setPendingDelete] = useState<Principle | null>(null);
   const [footprint, setFootprint] = useState<SchoolPrincipleFootprint | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Arriving from the principle menu's link: bring the card into view and ring it, so it
+  // is obvious which of the five cards the link was pointing at. The ring fades on its own
+  // rather than needing a dismiss.
+  const principlesCard = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState(false);
+
+  useEffect(() => {
+    if (focusSection !== 'principles') return;
+    // Deferred to a macrotask, not requestAnimationFrame: this screen has just replaced
+    // the journey, and a scroll issued from inside a frame callback — before the swapped
+    // layout is painted — is silently dropped. A timeout runs after the paint and lands.
+    //
+    // Default scroll behaviour rather than `smooth` for the same reason: an animation
+    // that sometimes does nothing would leave the principal on the business card with no
+    // sign the link went anywhere. The ring is what draws the eye once she arrives.
+    // `start`, not `center`: the card is taller than a laptop viewport, so centring it
+    // pushes its own heading off the top. `scroll-mt-24` on the wrapper keeps it clear
+    // of the sticky app bar.
+    const scroll = setTimeout(() => {
+      principlesCard.current?.scrollIntoView({ block: 'start' });
+    }, 0);
+    setHighlight(true);
+    const fade = setTimeout(() => setHighlight(false), 2600);
+    return () => {
+      clearTimeout(scroll);
+      clearTimeout(fade);
+    };
+  }, [focusSection]);
 
   const askDelete = async (p: Principle) => {
     setPendingDelete(p);
@@ -314,6 +346,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </Card>
 
       {/* ============ 2. The school's own principles ============ */}
+      <div
+        ref={principlesCard}
+        className={`rounded-2xl scroll-mt-24 transition-shadow duration-500 ${
+          highlight ? 'ring-2 ring-amber-400 ring-offset-2' : ''
+        }`}
+      >
       <Card
         icon="fa-solid fa-star"
         title="העקרונות הייחודיים של בית הספר"
@@ -389,6 +427,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </span>
         </div>
       </Card>
+      </div>
 
       {wizard && schoolId && (
         <SchoolPrincipleWizard

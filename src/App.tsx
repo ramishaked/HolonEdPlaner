@@ -116,6 +116,12 @@ export default function App() {
 
   // Settings screen (opened from the gear in the top bar).
   const [showSettings, setShowSettings] = useState(false);
+  /**
+   * Which settings card to scroll to on open. The principle menu links straight to the
+   * unique-principles card, which sits below the business card and would otherwise be
+   * off-screen — a "link" that lands on an unrelated form is not a link.
+   */
+  const [settingsFocus, setSettingsFocus] = useState<'principles' | null>(null);
 
   // School identity profile ("business card") — text fields live on the schools
   // row; logo + attachments live in Supabase Storage.
@@ -269,6 +275,17 @@ export default function App() {
    * assessment, activity plan and focus role against the *new* principle's uuid within
    * 700ms, silently attaching one principle's work to another.
    */
+  /**
+   * The principle menu's "add a unique principle" row — settings is where it lives.
+   *
+   * Deliberately does NOT scroll to the top the way the gear does: the target card sits
+   * below the business card, and SettingsView scrolls to it itself.
+   */
+  const openPrincipleSettings = () => {
+    setSettingsFocus('principles');
+    setShowSettings(true);
+  };
+
   const handlePrincipleDeleted = (orderIndex: number) => {
     setAnswers(({ [orderIndex]: _answer, ...rest }) => rest);
     setPrinciplePlans(({ [orderIndex]: _plan, ...rest }) => rest);
@@ -583,7 +600,7 @@ export default function App() {
             type="button"
             title="הגדרות"
             aria-label="הגדרות"
-            onClick={() => { setShowSettings((s) => !s); window.scrollTo({ top: 0 }); }}
+            onClick={() => { setSettingsFocus(null); setShowSettings((s) => !s); window.scrollTo({ top: 0 }); }}
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
               showSettings ? 'text-slate-700 bg-slate-100' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
             }`}
@@ -640,6 +657,7 @@ export default function App() {
             userId={session.user.id}
             onPrinciplesChanged={reloadPrinciples}
             onPrincipleDeleted={handlePrincipleDeleted}
+            focusSection={settingsFocus}
           />
         ) : currentStep === 'export' ? (
           <>
@@ -668,6 +686,7 @@ export default function App() {
               answers={answers}
               selected={orientSelected}
               onSelect={setOrientSelected}
+              onAddPrinciple={openPrincipleSettings}
             />
           )}
 
@@ -681,6 +700,7 @@ export default function App() {
                 setOrientSelected(id);
                 goToStep('orient');
               }}
+              onAddPrinciple={openPrincipleSettings}
             />
           )}
 
@@ -694,6 +714,7 @@ export default function App() {
                 setOrientSelected(id);
                 goToStep('orient');
               }}
+              onAddPrinciple={openPrincipleSettings}
             />
           )}
 

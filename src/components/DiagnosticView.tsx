@@ -12,6 +12,8 @@ interface DiagnosticViewProps {
   onClearData: () => void;
   /** Jump to a principle's explanation page in the orient zone. */
   onOpenPrincipleInfo?: (id: number) => void;
+  /** Opens settings at the unique-principles card. */
+  onAddPrinciple?: () => void;
 }
 
 export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
@@ -20,6 +22,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
   onUpdateAnswer,
   onClearData,
   onOpenPrincipleInfo,
+  onAddPrinciple,
 }) => {
   const { principles, rubrics, displayNumbers } = usePrinciples();
   const [activeTab, setActiveTab] = useState<number>(1); // Active principle ID for questionnaire
@@ -103,6 +106,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
           }}
           scores={scores}
           answers={answers}
+          onAddPrinciple={onAddPrinciple}
           title="עקרונות המיפוי"
           introLabel="מה קורה כאן?"
           introIcon="fa-solid fa-circle-question"

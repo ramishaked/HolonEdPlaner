@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePrinciples } from '../lib/PrinciplesContext';
+import { SCHOOL_PRINCIPLE_SLOTS } from '../lib/principlesAdmin';
 import { DiagnosticAnswers } from '../types';
 
 export type MenuSelection = number | 'intro';
@@ -21,10 +22,27 @@ interface PrincipleMenuProps {
   /** Per-principle activity counts (order_index → count). When >0 a small "planned"
    *  dot shows on the row. Optional — only the planning zone passes it. */
   activityCounts?: Record<number, number>;
+  /**
+   * Opens the school's own settings at the unique-principles card.
+   *
+   * When passed, an invitation row appears under the list — but only while the school
+   * still has a free slot. It is the discovery path: a principal browsing the menu is
+   * exactly the person who would notice a missing principle, and the settings screen is
+   * otherwise somewhere she has no reason to open.
+   */
+  onAddPrinciple?: () => void;
 }
 
 const COLLAPSE_KEY = 'school_principle_menu_collapsed_v1';
 const INTRO_SUMMARY = 'סקירה כללית על הקיט ועל אופן השימוש בו.';
+
+const ADD_LABEL = 'הוספת עיקרון ייחודי';
+
+/** Hebrew agrees the verb with the count, so the whole clause is built here. */
+const addSummary = (slotsLeft: number) =>
+  slotsLeft === 1
+    ? 'נותר לבית הספר מקום לעיקרון ייחודי אחד — תחום שאינו מיוצג בעקרונות העירוניים. ההגדרה נעשית במסך ההגדרות.'
+    : `אפשר להגדיר עד ${slotsLeft} עקרונות ייחודיים לבית הספר — תחומים שאינם מיוצגים בעקרונות העירוניים. ההגדרה נעשית במסך ההגדרות.`;
 const TIP_WIDTH = 224; // px — keep in sync with the tooltip card width (w-56)
 
 type TipState = { top: number; left: number; title: string; text: string };
@@ -51,8 +69,10 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
   introSummary = INTRO_SUMMARY,
   title = 'עקרונות תמונת העתיד',
   activityCounts,
+  onAddPrinciple,
 }) => {
   const { principles, shortTitles } = usePrinciples();
+  const slotsLeft = SCHOOL_PRINCIPLE_SLOTS - principles.filter((p) => p.scope === 'school').length;
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     const saved = localStorage.getItem(COLLAPSE_KEY);
     if (saved === 'true') return true;
@@ -196,6 +216,52 @@ export const PrincipleMenu: React.FC<PrincipleMenuProps> = ({
           planned: (activityCounts?.[p.id] ?? 0) > 0,
         });
       })}
+
+      {/* Invitation to add a school principle. Deliberately styled as an action, not a
+          destination: dashed, amber, no score badge — so it never reads as a principle
+          that hasn't been mapped yet. Disappears once both slots are used. */}
+      {onAddPrinciple && slotsLeft > 0 && (
+        <>
+          <div className="h-px bg-slate-100 my-1"></div>
+          <button
+            onClick={() => {
+              hideTip();
+              onAddPrinciple();
+            }}
+            onMouseEnter={(e) => showTip(e.currentTarget, ADD_LABEL, addSummary(slotsLeft))}
+            onMouseLeave={hideTip}
+            onFocus={(e) => showTip(e.currentTarget, ADD_LABEL, addSummary(slotsLeft))}
+            onBlur={hideTip}
+            aria-label={ADD_LABEL}
+            className={`w-full flex cursor-pointer transition-all duration-200 rounded-xl border border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50/60 text-amber-700 ${
+              collapsed ? 'flex-col items-center gap-0.5 p-1.5' : 'items-center gap-2.5 p-2.5 text-right'
+            }`}
+          >
+            <span
+              className={`rounded-lg flex items-center justify-center shrink-0 bg-amber-100/70 ${
+                collapsed ? 'w-9 h-9' : 'w-7 h-7'
+              }`}
+            >
+              <i className={`fa-solid fa-plus ${collapsed ? 'text-base' : 'text-sm'}`}></i>
+            </span>
+
+            {!collapsed && (
+              <span className="flex-1 leading-tight">
+                <span className="block text-xs font-bold">{ADD_LABEL}</span>
+                <span className="block text-[0.65rem] font-medium text-amber-600/90">
+                  {slotsLeft === SCHOOL_PRINCIPLE_SLOTS
+                    ? `${SCHOOL_PRINCIPLE_SLOTS} מקומות פנויים`
+                    : 'נותר מקום אחד'}
+                </span>
+              </span>
+            )}
+
+            {collapsed && (
+              <span className="text-[0.6rem] font-bold leading-none text-amber-500">{slotsLeft}</span>
+            )}
+          </button>
+        </>
+      )}
     </div>
   );
 
