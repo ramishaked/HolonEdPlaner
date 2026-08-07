@@ -320,34 +320,40 @@ export default function App() {
       return;
     }
     let active = true;
-    supabase
-      .from('profiles')
-      .select('school_id, municipality_id, role, schools(name, municipality_id)')
-      .eq('id', session.user.id)
-      .single()
-      .then(({ data }) => {
-        if (!active) return;
-        const embedded = data?.schools as unknown;
-        const school = Array.isArray(embedded) ? embedded[0] : embedded;
-        const typed = school as { name?: string; municipality_id?: string } | null | undefined;
+    (async () => {
+      let data: {
+        municipality_id?: string | null;
+        role?: 'school' | 'city_admin' | 'super_admin' | null;
+        schools?: unknown;
+      } | null = null;
+      try {
+        ({ data } = await supabase
+          .from('profiles')
+          .select('school_id, municipality_id, role, schools(name, municipality_id)')
+          .eq('id', session.user.id)
+          .single());
+      } catch {
+        // A dropped request must not strand the user on the spinner: release the gate
+        // below with no role, which falls back to the journey as it did before.
+      }
+      if (!active) return;
 
-        setViewerRole(data?.role ?? null);
-        // Answered, even if the answer was "no profile row" — otherwise the app hangs
-        // on the spinner forever instead of falling back to the journey.
-        setRoleResolved(true);
-        // Mirrors app.auth_municipality_id(): fall back through the school.
-        setViewerMunicipalityId(data?.municipality_id ?? typed?.municipality_id ?? null);
-        if (typed?.name) {
-          setActionPlan((prev) =>
-            prev.schoolName === typed.name ? prev : { ...prev, schoolName: typed.name! },
-          );
-        }
-      })
-      // A dropped request must not strand the user on the spinner — release the gate
-      // and let the journey render, which is what an unknown role fell back to before.
-      .catch(() => {
-        if (active) setRoleResolved(true);
-      });
+      const embedded = data?.schools as unknown;
+      const school = Array.isArray(embedded) ? embedded[0] : embedded;
+      const typed = school as { name?: string; municipality_id?: string } | null | undefined;
+
+      setViewerRole(data?.role ?? null);
+      // Mirrors app.auth_municipality_id(): fall back through the school.
+      setViewerMunicipalityId(data?.municipality_id ?? typed?.municipality_id ?? null);
+      // Answered — even if the answer was "no profile row". Set last, so no screen can
+      // render off a half-applied identity.
+      setRoleResolved(true);
+      if (typed?.name) {
+        setActionPlan((prev) =>
+          prev.schoolName === typed.name ? prev : { ...prev, schoolName: typed.name! },
+        );
+      }
+    })();
     return () => {
       active = false;
     };
