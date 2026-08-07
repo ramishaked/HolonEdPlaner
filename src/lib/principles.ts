@@ -39,8 +39,11 @@ export async function fetchPrinciples(
 
   for (const row of data) {
     // NOTE: municipal and school-scoped principles share this map, keyed by order_index.
-    // Nothing creates school-scoped principles today; when that arrives, namespace their
-    // order_index (1000+) so it cannot collide with the municipal 1..N.
+    // School-scoped principles DO exist now, and they are numbered in the same 1..N space
+    // as the municipal ones (municipal renumbering in principlesAdmin deliberately skips
+    // them). Nothing yet forces them apart, so the next municipal principle can be handed
+    // an order_index a school principle already holds — and this map would then silently
+    // keep only one of the two. Namespacing school principles at 1000+ is the open fix.
     const orderId = row.order_index;
     orderToId[orderId] = row.id;
     shortTitles[orderId] = row.title;
@@ -54,6 +57,7 @@ export async function fetchPrinciples(
       uuid: row.id,
       isActive: row.is_active,
       scope: row.scope,
+      schoolId: row.school_id,
       title: row.title,
       icon: row.icon,
       colorName: row.color_name,

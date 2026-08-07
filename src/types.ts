@@ -7,6 +7,9 @@ export interface Principle {
   /** false → hidden from the school journey. Only the admin console ever sees these. */
   isActive: boolean;
   scope: 'municipal' | 'school';
+  /** null for a municipal principle; the owning school when `scope === 'school'`.
+   *  The municipal dashboard needs it to count each school against its own set. */
+  schoolId: string | null;
   title: string;
   icon: string;
   colorName: string; // Tailwind class identifier, e.g., 'purple', 'blue', 'orange', 'cyan', 'emerald', 'indigo', 'rose'

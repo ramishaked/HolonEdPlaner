@@ -252,7 +252,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ) : (
               <p className="text-[11px] text-slate-400">לא צורפו קבצים עדיין.</p>
             )}
-            <p className="text-[10px] text-slate-400">בשלב זה נשמרת רשימת הקבצים בלבד. אחסון הקבצים עצמם בענן יתווסף בהמשך.</p>
+            <p className="text-[10px] text-slate-400">הקבצים נשמרים באחסון מאובטח ונגישים לבית הספר שלכם בלבד.</p>
           </div>
         </Field>
       </Card>

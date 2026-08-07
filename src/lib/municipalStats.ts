@@ -17,12 +17,32 @@ import type { DiagnosticResponse } from '../types';
 
 export type SchoolStage = 'not_started' | 'mapping' | 'mapped' | 'planning';
 
+/**
+ * Just enough of a principle to aggregate on: its UI id, its row id, and who owns it.
+ * `Principle` satisfies this structurally, so the dashboard passes its own list straight
+ * through instead of deriving a second, drift-prone copy.
+ */
+export interface PrincipleRef {
+  /** order_index — the UI id the rest of the app uses. */
+  id: number;
+  /** The DB row id, which is what plan_* rows actually reference. */
+  uuid: string;
+  /** null for a municipal principle; the owning school for a school-scoped one. */
+  schoolId: string | null;
+}
+
 export interface SchoolRow {
   id: string;
   name: string;
   stage: SchoolStage;
   /** How many principles this school actually mapped. */
   mapped: number;
+  /**
+   * How many principles this school is *expected* to map: the municipal set plus its
+   * own. Per school, never city-wide — another school's custom principle is not part
+   * of this one's journey, and counting it would put "completed" out of reach forever.
+   */
+  totalPrinciples: number;
   activities: number;
   /** Average over the principles it mapped — null when it mapped none. */
   averageScore: number | null;
@@ -63,10 +83,19 @@ export const STAGE_LABEL: Record<SchoolStage, string> = {
   planning: 'בנו תוכנית',
 };
 
-export async function fetchMunicipalStats(
-  idToOrder: Record<string, number>,
-  principleIds: number[],
-): Promise<MunicipalStats> {
+export async function fetchMunicipalStats(principles: PrincipleRef[]): Promise<MunicipalStats> {
+  const idToOrder: Record<string, number> = {};
+  for (const p of principles) idToOrder[p.uuid] = p.id;
+  const principleIds = principles.map((p) => p.id);
+
+  // The denominator is per school, not city-wide: everyone owes the municipal set, and
+  // a school additionally owes the principles it defined for itself.
+  const municipalTotal = principles.filter((p) => !p.schoolId).length;
+  const ownPrinciples = new Map<string, number>();
+  for (const p of principles) {
+    if (p.schoolId) ownPrinciples.set(p.schoolId, (ownPrinciples.get(p.schoolId) ?? 0) + 1);
+  }
+
   const [schoolsRes, plansRes, assessRes, focusRes, actsRes] = await Promise.all([
     supabase.from('schools').select('id, name').order('name'),
     supabase.from('plans').select('id, school_id, updated_at'),
@@ -145,8 +174,8 @@ export async function fetchMunicipalStats(
   }
 
   // ---- assemble ------------------------------------------------------------
-  const total = principleIds.length;
   const rows: SchoolRow[] = schools.map((s) => {
+    const total = municipalTotal + (ownPrinciples.get(s.id) ?? 0);
     const e = perSchool.get(s.id)!;
     const stage: SchoolStage =
       e.activities > 0 ? 'planning'
@@ -158,6 +187,7 @@ export async function fetchMunicipalStats(
       name: s.name,
       stage,
       mapped: e.mapped,
+      totalPrinciples: total,
       activities: e.activities,
       averageScore: e.mapped ? e.scoreSum / e.mapped : null,
       updatedAt: e.updatedAt,
@@ -189,18 +219,18 @@ export async function fetchMunicipalStats(
   return { schools: rows, stageCounts, byPrinciple, uptake, customActivities, totalActivities };
 }
 
-export function useMunicipalStats(idToOrder: Record<string, number>, principleIds: number[]) {
+export function useMunicipalStats(principles: PrincipleRef[]) {
   const [stats, setStats] = useState<MunicipalStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const key = `${Object.keys(idToOrder).length}:${principleIds.join(',')}`;
+  const key = principles.map((p) => `${p.id}:${p.uuid}:${p.schoolId ?? ''}`).join('|');
 
   useEffect(() => {
     let active = true;
-    if (!Object.keys(idToOrder).length || !principleIds.length) return;
+    if (!principles.length) return;
 
     setLoading(true);
-    fetchMunicipalStats(idToOrder, principleIds).then((s) => {
+    fetchMunicipalStats(principles).then((s) => {
       if (!active) return;
       setStats(s);
       setLoading(false);

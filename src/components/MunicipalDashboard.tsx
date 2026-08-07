@@ -62,18 +62,13 @@ const fmtDate = (iso: string | null) =>
 export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityBank> }> = ({
   bank,
 }) => {
-  const { principles, orderToId } = usePrinciples();
+  const { principles } = usePrinciples();
   // Held by AdminArea, hidden items included — see uptakeNamed for why that matters.
   const { all: bankItems } = bank;
 
-  const idToOrder = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const [order, uuid] of Object.entries(orderToId)) map[uuid] = Number(order);
-    return map;
-  }, [orderToId]);
-
-  const principleIds = useMemo(() => principles.map((p) => p.id), [principles]);
-  const { stats, loading } = useMunicipalStats(idToOrder, principleIds);
+  // Passed whole, ownership included: each school is measured against the municipal set
+  // plus its own principles, never against every principle in the city.
+  const { stats, loading } = useMunicipalStats(principles);
 
   const titleOf = (id: number) => principles.find((p) => p.id === id)?.title ?? `עיקרון ${id}`;
 
@@ -103,7 +98,7 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
       stampedName('בתי-ספר'),
       ['בית הספר', 'סטטוס', 'עקרונות שמופו', 'סך העקרונות', 'פעילויות', 'ציון ממוצע', 'עודכן'],
       (stats?.schools ?? []).map((s) => [
-        s.name, STAGE_LABEL[s.stage], String(s.mapped), String(principleIds.length),
+        s.name, STAGE_LABEL[s.stage], String(s.mapped), String(s.totalPrinciples),
         String(s.activities), s.averageScore?.toFixed(1) ?? '',
         s.updatedAt ? s.updatedAt.slice(0, 10) : '',
       ]),
@@ -157,7 +152,7 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
         icon="fa-solid fa-school-flag"
         title="מי עובד במערכת"
         onExport={exportSchools}
-        subtitle={`${started} מתוך ${totalSchools} בתי ספר התחילו לעבוד.`}
+        subtitle={`${started} מתוך ${totalSchools} בתי ספר התחילו לעבוד. עמודת "מופו" נמדדת מול העקרונות של אותו בית ספר — העירוניים ובנוסף עקרונות משלו, אם יש.`}
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 print:grid-cols-4">
           {STAGE_ORDER.map((stage) => {
@@ -201,7 +196,7 @@ export const MunicipalDashboard: React.FC<{ bank: ReturnType<typeof useActivityB
                             {STAGE_LABEL[s.stage]}
                           </span>
                         </td>
-                        <td className="p-2.5 text-slate-500 font-mono">{s.mapped}/{principleIds.length}</td>
+                        <td className="p-2.5 text-slate-500 font-mono">{s.mapped}/{s.totalPrinciples}</td>
                         <td className="p-2.5 text-slate-500 font-mono">{s.activities || '—'}</td>
                         <td className="p-2.5 text-slate-700 font-mono font-bold">
                           {s.averageScore === null ? '—' : s.averageScore.toFixed(1)}
