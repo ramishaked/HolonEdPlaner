@@ -60,7 +60,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **ESM gotcha:** `package.json` הוא `"type":"module"` → imports יחסיים ב-`api/`/`server.ts` חייבים סיומת `.js` (למשל `./api/_lib/ai.js`), אחרת Vercel זורק `ERR_MODULE_NOT_FOUND`.
 
 ### Deploy (Vercel)
-**מודל הענפים (מ-2026-08-06):** `main` הוא ה-Production Branch של Vercel — **מוקפא** על מה שרץ בפרוד (`holon-edplaner.vercel.app`, כרגע `67b2ae3`, מצב שלפני ה-DB). **לא מחייבים ולא דוחפים ל-`main` בשוטף.** כל עבודת Phase 2 חיה על ענף **`phase-2`** (נדחף ל-origin לגיבוי). דחיפה ל-`phase-2` בונה **preview בלבד** (`target: null`, מוגן ב-Vercel SSO, בלי DB) — לעולם לא נוגעת בפרוד.
+**מודל הענפים (עודכן 2026-08-07 — Phase 2 באוויר):** `main` הוא ה-Production Branch של Vercel ומריץ את **Phase 2 החי** (`holon-edplaner.vercel.app`, v0.1.13, commit `0fdc5d3`). ההקפאה של Phase 1 הסתיימה; הגרסה שקדמה לה מסומנת בתג **`prod-phase1-2026-08-04`** (=`67b2ae3`).
+
+הפיתוח ממשיך על **`phase-2`**; דחיפה אליו בונה **preview בלבד** (`target: null`, מוגן ב-Vercel SSO). `main` מתעדכן רק בריליז מכוון ומאושר.
+
+**⚠️ פרוד ופיתוח חולקים את אותו פרויקט Supabase** (`raifodlpxmseretxbqpn`) — אין מסד נפרד. כלומר כל מיגרציה, כל שינוי תוכן וכל ניסוי נתונים בפיתוח נוגעים **בנתוני בתי ספר חיים**. לפני כל שינוי סכימה או מחיקה: לבדוק מה יש שם בפועל.
+
+**חזרה אחורה — לקרוא לפני שמנסים:** Vercel Instant Rollback ל-`prod-phase1-2026-08-04` הוא **כיבוי חירום, לא שחזור**. לגרסה ההיא אין כניסה עובדת (`checkPassword` מחזיר `false` תמיד) והיא נגישה רק לדפדפן שכבר מחזיק `school_action_plan_v1` ב-localStorage — מפתח ש-Phase 2 מוחק בכניסה הראשונה (`App.tsx`). נתונים שנכתבו ל-Postgres אינם קריאים לה כלל. **המדיניות היא roll forward.**
 
 **איך עושים deploy לפרוד — רק באישור מפורש מהמשתמש:**
 1. Vercel → Project → Settings → Environment Variables (Production): להגדיר `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (anon/publishable בלבד — **לעולם לא** service_role תחת קידומת `VITE_`), וכן `SUPABASE_SERVICE_ROLE_KEY` **בלי** קידומת, לשימוש `api/admin/schools` בלבד. `GEMINI_API_KEY` כבר מוגדר ב-Production.
@@ -75,10 +81,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## שלבי פיתוח
 
-### Phase 1 — הדמו על Vercel · **הושלם**
-localStorage + ללא auth. הפרוד (`holon-edplaner.vercel.app`) עדיין מריץ את הגרסה הזו — ה-DB **לא** מחובר אליו.
+### Phase 1 — הדמו על Vercel · **הוחלף**
+localStorage + ללא auth. רץ בפרוד עד 7.8.2026; מסומן בתג `prod-phase1-2026-08-04`.
 
-### Phase 2 — DB וריבוי בתי ספר · **השלב הנוכחי (dev בלבד)**
+### Phase 2 — DB וריבוי בתי ספר · **השלב הנוכחי — באוויר בפרוד מ-7.8.2026 (v0.1.13)**
 - Supabase מחובר בפיתוח: auth פר בית-ספר (דרופדאון + סיסמה, מאחורי הקלעים session סינתטי) + RLS מלא; פונקציות ההרשאה בסכימה פרטית `app`.
 - הגמילה מ-localStorage **הושלמה** — כל מידע דינמי ב-DB, כולל העקרונות ובנק הפעילויות.
 - **למנהל המערכת יש כניסה משלו.** ב-`Onboarding` יש מצב `admin` (קישור בתחתית) שמתחבר ל-`ADMIN_EMAIL` (`admin@holon.test`, בפיתוח סיסמה `9999`) על **אותו לקוח `supabase`** הראשי. `App` מנתב לפי `profiles.role`: `city_admin`/`super_admin` מקבלים את `AdminArea` **במקום כל המסע**, ו-bootstrap התוכנית מדולג להם (אין להם `school_id`). אין יותר לקוח Supabase שני.
@@ -110,7 +116,7 @@ localStorage + ללא auth. הפרוד (`holon-edplaner.vercel.app`) עדיין 
 - כותרת ראשית קבועה בכל המסכים: "הפלנר (Holon School Educational Planner)".
 
 ## הסכמות עבודה
-- commits קטנים וברורים. **בזמן Phase 2 הפרוד מוקפא:** העבודה נצברת על ענף `phase-2` (דוחפים חופשי לגיבוי) ומתמזגת ל-`main` רק בריליז מכוון ומאושר — ראה "Deploy (Vercel)". אין deploy אוטומטי מ-`main` בשוטף.
+- commits קטנים וברורים. העבודה נצברת על ענף `phase-2` (דוחפים חופשי לגיבוי) ומתמזגת ל-`main` רק בריליז מכוון ומאושר — ראה "Deploy (Vercel)". **מ-2026-08-07 הפרוד חי ומשרת בתי ספר אמיתיים**, ולכן מיזוג ל-`main` הוא שינוי שנראה מיד ל-43 מנהלים.
 - לדווח לפני שינויים לא-טריוויאליים.
 - בעת עדכון מסך שמציג את העקרונות — להשתמש מחדש ב-`PrincipleMenu` ובסדר הקנוני מ-`usePrinciples()`, לא להמציא חדש. אין לקבע את **מספר** העקרונות בטקסט או בקוד: הוא דינמי (לבית ספר עם עיקרון ייחודי יש יותר).
 
