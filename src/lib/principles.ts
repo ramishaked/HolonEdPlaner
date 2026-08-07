@@ -38,12 +38,11 @@ export async function fetchPrinciples(
   const orderToId: Record<number, string> = {};
 
   for (const row of data) {
-    // NOTE: municipal and school-scoped principles share this map, keyed by order_index.
-    // School-scoped principles DO exist now, and they are numbered in the same 1..N space
-    // as the municipal ones (municipal renumbering in principlesAdmin deliberately skips
-    // them). Nothing yet forces them apart, so the next municipal principle can be handed
-    // an order_index a school principle already holds — and this map would then silently
-    // keep only one of the two. Namespacing school principles at 1000+ is the open fix.
+    // NOTE: municipal and school-scoped principles share this map, keyed by order_index,
+    // so a collision would silently drop one of the two — and could route an assessment
+    // to the wrong principle. They are kept apart by range, not by convention: municipal
+    // principles live in 1..999 (active 1..N, retired 90+), school ones at 1000+, and
+    // `principles_order_scope_ck` enforces it in the DB.
     const orderId = row.order_index;
     orderToId[orderId] = row.id;
     shortTitles[orderId] = row.title;

@@ -18,7 +18,14 @@ import type { MaturityLevel, Principle, PrincipleMaturity, Source } from '../typ
  * 2026-08-05 merge migration: parked at order_index 90+, survivors renumbered 1..N.
  */
 
-/** Where retired principles park, so they never collide with the active 1..N. */
+/**
+ * Where retired principles park, so they never collide with the active 1..N.
+ *
+ * The whole municipal band is 1..999; school-scoped principles start at 1000 and are
+ * never renumbered here (a city admin may read them but not write them). `principles_
+ * order_scope_ck` enforces that split in the DB — the two sets share one order_index
+ * space, and an overlap would make two principles answer to the same app-level id.
+ */
 const RETIRED_BASE = 90;
 
 /**
