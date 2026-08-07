@@ -48,6 +48,7 @@ export const SchoolsTab: React.FC<Props> = ({ onNotice }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
+  const [copied, setCopied] = useState<string | null>(null);
   const [confirmRetire, setConfirmRetire] = useState<AdminSchool | null>(null);
   const [resetting, setResetting] = useState<AdminSchool | null>(null);
   const [resetPassword, setResetPassword] = useState('');
@@ -89,6 +90,16 @@ export const SchoolsTab: React.FC<Props> = ({ onNotice }) => {
     }
   };
 
+  const copyCode = async (s: AdminSchool) => {
+    try {
+      await navigator.clipboard.writeText(s.accessCode);
+      setCopied(s.id);
+      setTimeout(() => setCopied((id) => (id === s.id ? null : id)), 1200);
+    } catch {
+      onNotice(`הסיסמה של "${s.name}" היא ${s.accessCode}.`);
+    }
+  };
+
   const saveRename = async (s: AdminSchool) => {
     if (editingName.trim() === s.name) { setEditingId(null); return; }
     const ok = await run(() => renameSchool(s.id, editingName), 'שם בית הספר עודכן.');
@@ -103,7 +114,7 @@ export const SchoolsTab: React.FC<Props> = ({ onNotice }) => {
       <Section
         icon="fa-solid fa-school"
         title="בתי הספר"
-        subtitle="הוספה, שינוי שם, איפוס סיסמה והשבתה. סיסמאות נשמרות מוצפנות — אי אפשר לראות סיסמה קיימת, רק לקבוע חדשה."
+        subtitle="הוספה, שינוי שם, איפוס סיסמה והשבתה. הסיסמה של כל בית ספר מוצגת לצד שמו — לחיצה עליה מעתיקה אותה."
         right={
           <button
             onClick={() => { setAdding((v) => !v); setNewPassword(suggestPassword()); }}
@@ -158,7 +169,7 @@ export const SchoolsTab: React.FC<Props> = ({ onNotice }) => {
             </div>
             <div className="flex items-center justify-between gap-3">
               <p className="text-[11px] text-slate-500">
-                בית הספר יופיע מיד ברשימת הכניסה. מסרו את הסיסמה למנהל/ת — לא תוכלו לראות אותה שוב.
+                בית הספר יופיע מיד ברשימת הכניסה, והסיסמה תוצג לצד שמו ברשימה.
               </p>
               <button
                 onClick={add}
@@ -193,7 +204,20 @@ export const SchoolsTab: React.FC<Props> = ({ onNotice }) => {
                   />
                 ) : (
                   <>
-                    <p className="text-sm font-bold text-slate-800">{s.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-slate-800">{s.name}</p>
+                      {s.accessCode && (
+                        <button
+                          onClick={() => copyCode(s)}
+                          title="העתקת הסיסמה"
+                          aria-label={`הסיסמה של ${s.name}: ${s.accessCode}. לחצו להעתקה`}
+                          dir="ltr"
+                          className="text-[11px] font-bold tracking-[0.2em] text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg px-2 py-0.5 cursor-pointer transition-colors"
+                        >
+                          {copied === s.id ? '✓' : s.accessCode}
+                        </button>
+                      )}
+                    </div>
                     <p className="text-[11px] text-slate-400">
                       {lastSeen(s.lastSignInAt)}
                       {s.hasPlan && ' · יש תוכנית'}
@@ -313,7 +337,11 @@ export const SchoolsTab: React.FC<Props> = ({ onNotice }) => {
           }}
           onCancel={() => setResetting(null)}
         >
-          <p>הסיסמה הנוכחית שמורה מוצפנת ואי אפשר לראות אותה — אפשר רק לקבוע חדשה.</p>
+          <p>
+            הסיסמה הנוכחית היא{' '}
+            <strong dir="ltr" className="text-slate-800 tracking-[0.2em]">{resetting.accessCode || '—'}</strong>.
+            הקלידו סיסמה חדשה במקומה:
+          </p>
           <div className="flex gap-1.5 pt-1">
             <input
               autoFocus
@@ -354,7 +382,7 @@ export const SchoolsTab: React.FC<Props> = ({ onNotice }) => {
           >
             {issued.password}
           </p>
-          <p>אחרי סגירת החלון לא ניתן יהיה לראות אותה שוב — היא נשמרת מוצפנת בלבד.</p>
+          <p>היא מוצגת גם ברשימה לצד שם בית הספר, כך שאפשר לחזור אליה בכל רגע.</p>
         </ConfirmDialog>
       )}
     </>

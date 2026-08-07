@@ -14,6 +14,8 @@ export interface AdminSchool {
   id: string;
   name: string;
   isActive: boolean;
+  /** The school's current login code, in the clear — see the 20260807130000 migration. */
+  accessCode: string;
   /** false when the school row exists but has no login yet. */
   hasLogin: boolean;
   lastSignInAt: string | null;

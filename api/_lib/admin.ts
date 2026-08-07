@@ -131,7 +131,7 @@ async function schoolAccounts(admin: SupabaseClient, municipalityId: string) {
 async function list(admin: SupabaseClient, caller: Caller): Promise<AdminResult> {
   const { data: schools, error } = await admin
     .from('schools')
-    .select('id, name, is_active, current_plan_id')
+    .select('id, name, is_active, current_plan_id, access_code')
     .eq('municipality_id', caller.municipalityId)
     .order('name');
 
@@ -151,6 +151,9 @@ async function list(admin: SupabaseClient, caller: Caller): Promise<AdminResult>
           id: s.id,
           name: s.name,
           isActive: s.is_active,
+          // The plain code, so the admin can read it back to a principal on the phone.
+          // Only ever leaves the server on this admin-authorised route.
+          accessCode: s.access_code ?? '',
           hasLogin: !!account,
           lastSignInAt: account?.last_sign_in_at ?? null,
           blocked: !!account?.banned_until && new Date(account.banned_until) > new Date(),

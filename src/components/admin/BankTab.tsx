@@ -125,8 +125,8 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
           </div>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="space-y-3">
+          <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs" />
             <input
               value={query}
@@ -135,18 +135,47 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
               className="w-full pr-8 p-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
-          <select
-            value={principleFilter}
-            onChange={(e) => setPrincipleFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            className="p-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500"
-          >
-            <option value="all">כל העקרונות</option>
-            {principles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title} ({(bank[p.id] ?? []).length})
-              </option>
-            ))}
-          </select>
+
+          {/* Chips, not a dropdown: the whole principle set is 5–7 items, so every
+              option fits on screen — and picking one is also what unlocks reordering,
+              which a collapsed menu hides. Each chip carries its own count. */}
+          <div className="flex flex-wrap gap-2" role="group" aria-label="סינון לפי עיקרון">
+            <button
+              type="button"
+              onClick={() => setPrincipleFilter('all')}
+              aria-pressed={principleFilter === 'all'}
+              className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                principleFilter === 'all'
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              כל העקרונות
+              <span className="font-normal opacity-70"> ({active.length})</span>
+            </button>
+            {principles.map((p) => {
+              const on = principleFilter === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPrincipleFilter(on ? 'all' : p.id)}
+                  aria-pressed={on}
+                  style={
+                    on
+                      ? { backgroundColor: p.accentColor, borderColor: p.accentColor }
+                      : { borderColor: `${p.accentColor}55`, color: p.accentColor }
+                  }
+                  className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                    on ? 'text-white' : 'bg-white hover:brightness-95'
+                  }`}
+                >
+                  {p.title}
+                  <span className="font-normal opacity-70"> ({(bank[p.id] ?? []).length})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <p className="text-[11px] text-slate-400">
