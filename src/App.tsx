@@ -82,8 +82,14 @@ export default function App() {
 
   // Supabase auth session — the gate to the whole app.
   const [session, setSession] = useState<Session | null>(null);
-  /** null until the profile resolves — the app waits rather than guessing a role. */
   const [viewerRole, setViewerRole] = useState<'school' | 'city_admin' | 'super_admin' | null>(null);
+  /**
+   * false while the profile lookup is still in flight. The role decides which of two
+   * applications the user gets, so an unanswered role is NOT the same as "school":
+   * falling through would render the school journey to a municipal admin — with another
+   * school's principle set in the menu — until the answer arrived.
+   */
+  const [roleResolved, setRoleResolved] = useState(false);
   const [viewerMunicipalityId, setViewerMunicipalityId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
@@ -162,7 +168,8 @@ export default function App() {
   useEffect(() => {
     if (!userId) return;
     // A municipal admin has no school and therefore no plan — don't try to make one.
-    if (viewerRole && viewerRole !== 'school') return;
+    // Wait for the role before deciding: "not answered yet" is not "school".
+    if (!roleResolved || viewerRole !== 'school') return;
     // Wait for principles to arrive from the DB — we need the uuid mapping.
     if (!Object.keys(orderToId).length) return;
 
@@ -208,8 +215,9 @@ export default function App() {
       active = false;
     };
     // Keyed on the user id, not the session object — a token refresh creates a new
-    // session object and must not re-trigger a reload.
-  }, [userId, orderToId]);
+    // session object and must not re-trigger a reload. The role is a dependency because
+    // the guard above waits for it: without it this would bail once and never come back.
+  }, [userId, orderToId, roleResolved, viewerRole]);
 
   // Persist the mapping (debounced). Gated on dataLoaded so the initial empty
   // state can never overwrite existing DB rows.
@@ -307,6 +315,7 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setViewerRole(null);
+      setRoleResolved(false);
       setViewerMunicipalityId(null);
       return;
     }
@@ -323,6 +332,9 @@ export default function App() {
         const typed = school as { name?: string; municipality_id?: string } | null | undefined;
 
         setViewerRole(data?.role ?? null);
+        // Answered, even if the answer was "no profile row" — otherwise the app hangs
+        // on the spinner forever instead of falling back to the journey.
+        setRoleResolved(true);
         // Mirrors app.auth_municipality_id(): fall back through the school.
         setViewerMunicipalityId(data?.municipality_id ?? typed?.municipality_id ?? null);
         if (typed?.name) {
@@ -330,6 +342,11 @@ export default function App() {
             prev.schoolName === typed.name ? prev : { ...prev, schoolName: typed.name! },
           );
         }
+      })
+      // A dropped request must not strand the user on the spinner — release the gate
+      // and let the journey render, which is what an unknown role fell back to before.
+      .catch(() => {
+        if (active) setRoleResolved(true);
       });
     return () => {
       active = false;
@@ -443,6 +460,18 @@ export default function App() {
         style={{ direction: 'rtl' }}
       >
         <Onboarding />
+      </div>
+    );
+  }
+
+  // Role gate: which of the two applications this session gets is decided by the DB
+  // profile, so nothing school-scoped may render until that answer is in. Falling
+  // through while it is unknown put a municipal admin inside the school journey —
+  // complete with a principle menu merged across schools.
+  if (!roleResolved) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+        <i className="fa-solid fa-spinner fa-spin text-2xl text-slate-300" aria-label="טוען" />
       </div>
     );
   }
