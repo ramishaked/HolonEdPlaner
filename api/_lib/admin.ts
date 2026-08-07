@@ -186,11 +186,17 @@ async function create(
   // The login is created through GoTrue so every internal auth column is filled
   // correctly; the password is then set to the admin's short code by the DB helper,
   // which is not bound by GoTrue's minimum length.
+  //
+  // Role and school go in `app_metadata`, which only this key can write — that is what
+  // the signup trigger reads (see the 20260807140000 migration). Putting them in
+  // `user_metadata` would be reading back whatever a client could have sent. The
+  // display name stays in user_metadata: it is a label, not a permission.
   const { error: authError } = await admin.auth.admin.createUser({
     email: schoolEmail(school.id),
     password: `bootstrap-${school.id}`,
     email_confirm: true,
-    user_metadata: { role: 'school', school_id: school.id, display_name: name },
+    app_metadata: { role: 'school', school_id: school.id },
+    user_metadata: { display_name: name },
   });
 
   if (authError) {

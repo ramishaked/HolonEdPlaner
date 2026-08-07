@@ -105,6 +105,7 @@ localStorage + ללא auth. הפרוד (`holon-edplaner.vercel.app`) עדיין 
   שינוי **סכימה** = מיגרציה תחת `supabase/migrations/`; מיגרציות משמשות גם לזריעת סביבה חדשה.
   שינוי **תוכן** של עקרונות (כולל הרובריקה והמקורות), בנק הפעילויות וקהלי היעד — נעשה **בזמן ריצה** ע"י המנהל העירוני דרך `AdminArea`, לא במיגרציה. הכתיבות עוברות ב-`src/lib/principlesAdmin.ts`, `activityBankAdmin.ts` ו-`audiencesAdmin.ts`, וה-RLS (`app.can_write_scoped`, `audiences_write`) אוכף אותן.
 - מפתח ה-`service_role` של Supabase, כמו `GEMINI_API_KEY`, לעולם לא בצד הלקוח.
+- **התפקיד (`profiles.role`) נקבע מ-`raw_app_meta_data` בלבד, לעולם לא מ-`raw_user_meta_data`.** GoTrue נותן ללקוח לכתוב רק `user_metadata` (זה מה ש-`options.data` ב-`signUp()` הופך להיות); ל-`app_metadata` כותב רק ה-admin API עם ה-service_role. עד מיגרציה `20260807140000` הטריגר `app.handle_new_user` קרא מ-`user_metadata`, כלומר בקשת הרשמה אחת עם `{"role":"city_admin"}` ייצרה מנהל עירוני בלי סיסמה. לכן `api/_lib/admin.ts` מעביר `app_metadata: { role, school_id }` ב-`createUser`; `display_name` נשאר ב-`user_metadata` כי הוא תווית ולא הרשאה. משתמש בלי `role` ב-`app_metadata` לא מקבל שורת `profiles` כלל — וזה תקין, כי `app.auth_role()` מחזיר null וכל ה-RLS דוחה.
 - **לא לעשות deploy לפרוד בלי אישור מפורש מהמשתמש.**
 - כותרת ראשית קבועה בכל המסכים: "הפלנר (Holon School Educational Planner)".
 

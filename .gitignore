@@ -9,3 +9,6 @@ coverage/
 .vercel
 .claude/settings.local.json
 .claude/launch.json
+
+# School login codes handed out to principals. Never commit — the repo is public.
+school-passwords-*.csv
