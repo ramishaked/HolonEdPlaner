@@ -68,3 +68,17 @@ export const COLOR_CHOICES: { name: string; label: string; hex: string }[] = [
   { name: 'orange', label: 'כתום', hex: '#f97316' },
   { name: 'rose', label: 'ורוד', hex: '#f43f5e' },
 ];
+
+/**
+ * The closed icon vocabulary, shared by the municipal editor and the school wizard.
+ *
+ * It lives here beside COLOR_CHOICES because the two are chosen together and both
+ * pickers need both — a second copy would let the admin gain an icon the school's
+ * picker never offers.
+ */
+export const ICON_CHOICES = [
+  'fa-solid fa-graduation-cap', 'fa-solid fa-user-tie', 'fa-solid fa-robot',
+  'fa-solid fa-microchip', 'fa-solid fa-shapes', 'fa-solid fa-lightbulb',
+  'fa-solid fa-compass', 'fa-solid fa-people-group', 'fa-solid fa-seedling',
+  'fa-solid fa-puzzle-piece', 'fa-solid fa-globe', 'fa-solid fa-heart',
+];

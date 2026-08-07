@@ -82,7 +82,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
   setPlans,
   onOpenPrincipleInfo,
 }) => {
-  const { principles } = usePrinciples();
+  const { principles, displayNumbers } = usePrinciples();
   const { bank, loading: bankLoading } = useActivityBank();
   // `audiences` — what may be picked (active only). `allAudiences` — what may be
   // displayed, so a retired audience still renders on activities that carry it.
@@ -212,6 +212,25 @@ export const PlanView: React.FC<PlanViewProps> = ({
     flashActivity(id);
   };
 
+  /**
+   * "הוספת פעילות" — the bank browser, or straight to a local initiative.
+   *
+   * The municipal bank is written by the city admin and is only ever linked to municipal
+   * principles, so a school's own principle can never have bank items. Opening the
+   * browser there would always land on its empty state, so skip it: the only route for a
+   * unique principle is a school initiative, and `flashActivity` scrolls to the new row
+   * so the result is visible without a modal.
+   */
+  const isOwnPrinciple = principle?.scope === 'school';
+
+  const openAddActivity = () => {
+    if (isOwnPrinciple) {
+      addActivity({ title: 'יוזמה ייחודית / אחר', desc: '', type: 'אחר', source: 'בית ספרי' });
+      return;
+    }
+    setBankModalOpen(true);
+  };
+
   const removeActivity = (aid: string) =>
     mutatePlan(activeTab, (p) => ({ ...p, activities: p.activities.filter((a) => a.id !== aid) }));
 
@@ -331,7 +350,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 <i className={`${principle.icon} text-lg`} style={{ color: principle.accentColor }}></i>
               </span>
               <div className="min-w-0">
-                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: principle.accentColor }}>עיקרון {principle.id}</span>
+                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: principle.accentColor }}>עיקרון {displayNumbers[principle.id] ?? principle.id}</span>
                 <h2 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight">{principle.title}</h2>
               </div>
             </div>
@@ -536,12 +555,14 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => setBankModalOpen(true)}
+                    onClick={openAddActivity}
                     className="bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
-                    title="הוספת פעילות מבנק הפעילויות"
+                    title={isOwnPrinciple
+                      ? 'עיקרון ייחודי — הפעילות נוספת ישירות לתוכנית כיוזמה בית-ספרית'
+                      : 'הוספת פעילות מבנק הפעילויות'}
                   >
                     <i className="fa-solid fa-plus"></i>
-                    הוספת פעילות
+                    {isOwnPrinciple ? 'הוספת יוזמה' : 'הוספת פעילות'}
                   </button>
                   <span className="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full">
                     {plan.activities.length} פעולות
@@ -574,13 +595,17 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
                   <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-3"><i className="fa-solid fa-folder-open text-xl"></i></div>
                   <h4 className="font-bold text-slate-700 mb-1 text-sm">תוכנית העבודה ריקה</h4>
-                  <p className="text-xs text-slate-500 max-w-sm mb-4">פתחו את בנק הפעילויות והוסיפו פעילויות כדי להתחיל להרכיב את התוכנית.</p>
+                  <p className="text-xs text-slate-500 max-w-sm mb-4">
+                    {isOwnPrinciple
+                      ? 'זהו עיקרון ייחודי של בית הספר, ולכן אין לו פעילויות בבנק העירוני. הוסיפו יוזמות משלכם כדי להתחיל.'
+                      : 'פתחו את בנק הפעילויות והוסיפו פעילויות כדי להתחיל להרכיב את התוכנית.'}
+                  </p>
                   <button
-                    onClick={() => setBankModalOpen(true)}
+                    onClick={openAddActivity}
                     className="bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
                   >
                     <i className="fa-solid fa-plus"></i>
-                    הוספת פעילות מהבנק
+                    {isOwnPrinciple ? 'הוספת יוזמה בית-ספרית' : 'הוספת פעילות מהבנק'}
                   </button>
                 </div>
               ) : (

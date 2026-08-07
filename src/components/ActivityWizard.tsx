@@ -69,7 +69,15 @@ const DuplicateWarning: React.FC<{ hits: DuplicateHit[] }> = ({ hits }) => {
 // ---- the wizard -------------------------------------------------------------
 
 export const ActivityWizard: React.FC<Props> = ({ viewer, existing, editing, onClose, onSaved }) => {
-  const { principles, orderToId } = usePrinciples();
+  const { principles: allPrinciples, orderToId } = usePrinciples();
+  // The bank is municipal, so only municipal principles may be linked. RLS hands a city
+  // admin every school's own principles too; linking one would put a municipal activity
+  // under a principle only that school can see — and a school deleting its principle
+  // cascades the link away, leaving a bank item attached to nothing.
+  const principles = useMemo(
+    () => allPrinciples.filter((p) => p.scope === 'municipal'),
+    [allPrinciples],
+  );
   const { audiences } = useAudiences();
 
   const [mode, setMode] = useState<Mode>('single');
@@ -458,7 +466,15 @@ const BulkImport: React.FC<{
   onSaved: () => void;
   onClose: () => void;
 }> = ({ viewer, existing, onSaved, onClose }) => {
-  const { principles, orderToId } = usePrinciples();
+  const { principles: allPrinciples, orderToId } = usePrinciples();
+  // The bank is municipal, so only municipal principles may be linked. RLS hands a city
+  // admin every school's own principles too; linking one would put a municipal activity
+  // under a principle only that school can see — and a school deleting its principle
+  // cascades the link away, leaving a bank item attached to nothing.
+  const principles = useMemo(
+    () => allPrinciples.filter((p) => p.scope === 'municipal'),
+    [allPrinciples],
+  );
 
   // Grouped from the copy already passed in, not a second fetch — new rows only need
   // it to be ranked after the existing ones in their principle group.

@@ -14,6 +14,16 @@ export interface LoadedPrinciples {
   shortTitles: Record<number, string>;
   /** order_index → DB uuid, for persisting assessments/plans later. */
   orderToId: Record<number, string>;
+  /**
+   * order_index → the 1-based position the principal sees ("עיקרון 6").
+   *
+   * Derived from the loaded, ordered set — NOT from order_index, which is 1000+ for a
+   * school's own principle and would render as "עיקרון 1000". Built here rather than in
+   * a helper because this query is what *defines* the order; a second place deciding it
+   * would drift. Under `includeInactive` it numbers retired rows too — the admin console
+   * never renders it.
+   */
+  displayNumbers: Record<number, number>;
 }
 
 /**
@@ -36,6 +46,7 @@ export async function fetchPrinciples(
   const rubrics: PrincipleMaturity[] = [];
   const shortTitles: Record<number, string> = {};
   const orderToId: Record<number, string> = {};
+  const displayNumbers: Record<number, number> = {};
 
   for (const row of data) {
     // NOTE: municipal and school-scoped principles share this map, keyed by order_index,
@@ -46,6 +57,9 @@ export async function fetchPrinciples(
     const orderId = row.order_index;
     orderToId[orderId] = row.id;
     shortTitles[orderId] = row.title;
+    // Position in this (already ordered) set, so the school's own principle reads as the
+    // number that follows the municipal ones instead of its raw 1000+ slot.
+    displayNumbers[orderId] = principles.length + 1;
 
     const sources = [...(row.principle_sources ?? [])]
       .sort((a, b) => a.order_index - b.order_index)
@@ -86,5 +100,5 @@ export async function fetchPrinciples(
     });
   }
 
-  return { principles, rubrics, shortTitles, orderToId };
+  return { principles, rubrics, shortTitles, orderToId, displayNumbers };
 }

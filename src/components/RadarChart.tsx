@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { usePrinciples } from '../lib/PrinciplesContext';
 
+/** Axis labels are drawn as a single SVG line; the full name lives in the <title>. */
+const axisLabel = (s: string) => (s.length > 14 ? `${s.slice(0, 13)}…` : s);
+
 interface RadarChartProps {
   scores: { [key: number]: number }; // principleId -> score (1.0 to 4.0)
   activeId?: number;
@@ -22,10 +25,19 @@ export const RadarChart: React.FC<RadarChartProps> = ({
    * admin edits — never hardcode them here. The rubric is per principle, while the
    * legend is global, so a level only gets a name when every principle that defines
    * it agrees; otherwise the number alone is the only honest thing to show.
+   *
+   * MUNICIPAL rubrics only. The legend describes the city's shared maturity scale, and a
+   * school's own principle may word its levels differently — letting one school's wording
+   * disagree would blank every label on the chart, here and on the municipal dashboard.
    */
+  const municipalRubrics = React.useMemo(() => {
+    const municipalIds = new Set(principles.filter((p) => p.scope === 'municipal').map((p) => p.id));
+    return rubrics.filter((r) => municipalIds.has(r.id));
+  }, [principles, rubrics]);
+
   const legendLevels = React.useMemo(() => {
     const byLevel = new Map<number, Set<string>>();
-    for (const rubric of rubrics) {
+    for (const rubric of municipalRubrics) {
       for (const l of rubric.levels) {
         const name = l.name.trim();
         if (!name) continue;
@@ -33,7 +45,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
       }
     }
 
-    const count = Math.max(0, ...rubrics.flatMap((r) => r.levels.map((l) => l.level)));
+    const count = Math.max(0, ...municipalRubrics.flatMap((r) => r.levels.map((l) => l.level)));
     return Array.from({ length: count }, (_, i) => {
       const level = i + 1;
       const names = byLevel.get(level);
@@ -45,15 +57,18 @@ export const RadarChart: React.FC<RadarChartProps> = ({
         title: agreed || (names && names.size > 1 ? 'העקרונות מגדירים את הרמה הזו בשמות שונים' : ''),
       };
     });
-  }, [rubrics]);
+  }, [municipalRubrics]);
 
-  // SVG parameters
-  const width = 450;
-  const height = 400;
+  // SVG parameters. A school may add its own principles, so the axis count is not fixed:
+  // above six the labels start crowding, and the canvas widens to give them room. The SVG
+  // scales to its container, so nothing around it moves.
+  const totalAxes = principles.length || 7;
+  const crowded = totalAxes > 6;
+  const width = crowded ? 500 : 450;
+  const height = crowded ? 430 : 400;
   const cx = width / 2;
   const cy = height / 2 - 10;
   const r = 130;
-  const totalAxes = principles.length || 7;
 
   // Compute angles for 7 axes starting from the top (-90 deg), going clockwise
   const getCoordinates = (index: number, val: number) => {
@@ -163,7 +178,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
         {/* Text Labels at the outer vertices */}
         {principles.map((p, i) => {
           const outerPt = getCoordinates(i, 4);
-          const labelDist = 24; // offset label slightly outside the tip
+          const labelDist = crowded ? 34 : 24; // offset label slightly outside the tip
           const angle = -Math.PI / 2 + (2 * Math.PI * i) / totalAxes;
           const lx = cx + (r + labelDist) * Math.cos(angle);
           const ly = cy + (r + labelDist) * Math.sin(angle) + 4;
@@ -208,7 +223,11 @@ export const RadarChart: React.FC<RadarChartProps> = ({
                 }`}
                 style={{ direction: 'rtl' }}
               >
-                {p.shortLabel || p.title}
+                {/* A principle without a short label would print a whole sentence into a
+                    12px SVG label and collide with its neighbours. The school wizard
+                    requires one; this truncation covers older municipal rows. */}
+                <title>{p.title}</title>
+                {axisLabel(p.shortLabel || p.title)}
               </text>
               <text
                 x={lx}

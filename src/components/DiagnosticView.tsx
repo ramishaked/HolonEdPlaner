@@ -21,7 +21,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
   onClearData,
   onOpenPrincipleInfo,
 }) => {
-  const { principles, rubrics } = usePrinciples();
+  const { principles, rubrics, displayNumbers } = usePrinciples();
   const [activeTab, setActiveTab] = useState<number>(1); // Active principle ID for questionnaire
   const [draggedOrHoveredId, setDraggedOrHoveredId] = useState<number | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -150,7 +150,7 @@ export const DiagnosticView: React.FC<DiagnosticViewProps> = ({
                 </span>
                 <div className="min-w-0">
                   <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: currentPrinciple.accentColor }}>
-                    עיקרון {currentPrinciple.id}
+                    עיקרון {displayNumbers[currentPrinciple.id] ?? currentPrinciple.id}
                   </span>
                   <h3 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight">{currentPrinciple.title}</h3>
                 </div>

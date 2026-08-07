@@ -21,12 +21,21 @@ import type { MaturityLevel, Principle, PrincipleMaturity, Source } from '../typ
 /**
  * Where retired principles park, so they never collide with the active 1..N.
  *
- * The whole municipal band is 1..999; school-scoped principles start at 1000 and are
- * never renumbered here (a city admin may read them but not write them). `principles_
- * order_scope_ck` enforces that split in the DB — the two sets share one order_index
- * space, and an overlap would make two principles answer to the same app-level id.
+ * The whole municipal band is 1..999; a school's own principles occupy the two slots
+ * 1000..1001 and are never renumbered here (a city admin may read them but not write
+ * them). `principles_order_scope_ck` enforces that split in the DB — the two sets share
+ * one order_index space, and an overlap would make two principles answer to the same
+ * app-level id.
  */
 const RETIRED_BASE = 90;
+
+/**
+ * The school band. Mirrors `principles_order_scope_ck` and `principles_school_slot_uq`:
+ * a school owns at most two principles, one per slot. Widening the cap means widening
+ * the DB CHECK first — these constants follow the schema, they never lead it.
+ */
+export const SCHOOL_SLOT_BASE = 1000;
+export const SCHOOL_PRINCIPLE_SLOTS = 2;
 
 /**
  * Hebrew needs the whole clause, not a number plus a noun: the verb agrees with the
@@ -125,14 +134,34 @@ export const draftFromPrinciple = (
   };
 };
 
-const contentColumns = (draft: PrincipleDraft) => ({
+/** Identity — what every screen renders as the principle's face. */
+const identityColumns = (draft: PrincipleDraft) => ({
   title: draft.title.trim(),
   short_label: draft.shortLabel.trim(),
   icon: draft.icon.trim(),
   color_name: draft.colorName,
   accent_color: draft.accentColor,
+});
+
+/** The two narrative fields the lean school wizard offers. */
+const narrativeColumns = (draft: PrincipleDraft) => ({
   short_summary: draft.shortSummary.trim(),
   rationale: draft.rationale.trim(),
+});
+
+/**
+ * What the lean school wizard owns. Deliberately NOT `contentColumns`: sending the empty
+ * strings and arrays of fields it never shows would blank anything already stored there,
+ * making an edit destructive in a way the principal cannot see on screen.
+ */
+const leanColumns = (draft: PrincipleDraft) => ({
+  ...identityColumns(draft),
+  ...narrativeColumns(draft),
+});
+
+const contentColumns = (draft: PrincipleDraft) => ({
+  ...identityColumns(draft),
+  ...narrativeColumns(draft),
   gaps_solved: draft.gapsSolved.map((s) => s.trim()).filter(Boolean),
   added_value: draft.addedValue.trim(),
   implementation_strategy: draft.implementationStrategy.map((s) => s.trim()).filter(Boolean),
@@ -145,13 +174,68 @@ const contentColumns = (draft: PrincipleDraft) => ({
 });
 
 /**
- * Create or update a principle with its rubric and sources.
+ * Write all four rubric levels.
+ *
+ * `unique(principle_id, level)` makes the upsert exact and idempotent — no ids to track.
+ * Shared by the municipal editor and the school wizard so the two can never disagree
+ * about what a rubric level is.
+ */
+async function saveRubric(uuid: string, levels: MaturityLevel[]): Promise<SaveResult> {
+  const { error } = await supabase.from('principle_rubric_levels').upsert(
+    levels.map((l) => ({
+      principle_id: uuid,
+      level: l.level,
+      name: l.name.trim(),
+      description: l.description.trim(),
+    })),
+    { onConflict: 'principle_id,level' },
+  );
+  if (error) return { ok: false, error: 'תוכן העיקרון נשמר, אך הקריטריונים לא. נסו לשמור שוב.' };
+  return { ok: true };
+}
+
+/**
+ * Replace this principle's sources in place.
+ *
+ * Nothing references `principle_sources`, so delete-then-insert turns add / remove /
+ * reorder into one code path instead of three. Municipal only — the school wizard has no
+ * sources UI, and calling this from there would silently delete rows it cannot show.
+ */
+async function saveSources(uuid: string, drafted: Source[]): Promise<SaveResult> {
+  const failed = { ok: false as const, error: 'תוכן העיקרון נשמר, אך המקורות לא עודכנו. נסו לשמור שוב.' };
+
+  const { error: clearError } = await supabase
+    .from('principle_sources')
+    .delete()
+    .eq('principle_id', uuid);
+  if (clearError) return failed;
+
+  const sources = drafted.filter((s) => s.title.trim() || s.description.trim() || s.url.trim());
+  if (!sources.length) return { ok: true };
+
+  const { error } = await supabase.from('principle_sources').insert(
+    sources.map((s, i) => ({
+      principle_id: uuid,
+      title: s.title.trim(),
+      description: s.description.trim(),
+      url: s.url.trim(),
+      keywords: s.keywords.trim(),
+      order_index: i,
+    })),
+  );
+  return error ? failed : { ok: true };
+}
+
+/**
+ * Create or update a MUNICIPAL principle with its rubric and sources.
  *
  * Three sequential writes rather than one RPC. The atomic `set_plan_focus` RPC exists
  * to fix a *concurrency* bug (debounced saves interleaving); this editor has one writer
  * behind an explicit save button. The residual risk is a network blip between steps,
  * whose worst outcome is "new narrative text, old rubric text" — coherent, visible on
  * screen, and fixed by pressing save again. Each step reports its own Hebrew error.
+ *
+ * The school-side sibling is `saveSchoolPrinciple` below.
  */
 export async function savePrinciple(
   draft: PrincipleDraft,
@@ -186,46 +270,11 @@ export async function savePrinciple(
     uuid = data.id;
   }
 
-  // unique(principle_id, level) makes this exact and idempotent — no ids to track.
-  const { error: rubricError } = await supabase.from('principle_rubric_levels').upsert(
-    draft.levels.map((l) => ({
-      principle_id: uuid,
-      level: l.level,
-      name: l.name.trim(),
-      description: l.description.trim(),
-    })),
-    { onConflict: 'principle_id,level' },
-  );
-  if (rubricError) {
-    return { ok: false, uuid, error: 'תוכן העיקרון נשמר, אך הקריטריונים לא. נסו לשמור שוב.' };
-  }
+  const rubric = await saveRubric(uuid, draft.levels);
+  if (!rubric.ok) return { ...rubric, uuid };
 
-  // Nothing references principle_sources, so replace-in-place turns add / remove /
-  // reorder into one code path instead of three.
-  const { error: clearError } = await supabase
-    .from('principle_sources')
-    .delete()
-    .eq('principle_id', uuid);
-  if (clearError) {
-    return { ok: false, uuid, error: 'תוכן העיקרון נשמר, אך המקורות לא עודכנו. נסו לשמור שוב.' };
-  }
-
-  const sources = draft.sources.filter((s) => s.title.trim() || s.description.trim() || s.url.trim());
-  if (sources.length) {
-    const { error: sourceError } = await supabase.from('principle_sources').insert(
-      sources.map((s, i) => ({
-        principle_id: uuid,
-        title: s.title.trim(),
-        description: s.description.trim(),
-        url: s.url.trim(),
-        keywords: s.keywords.trim(),
-        order_index: i,
-      })),
-    );
-    if (sourceError) {
-      return { ok: false, uuid, error: 'תוכן העיקרון נשמר, אך המקורות לא עודכנו. נסו לשמור שוב.' };
-    }
-  }
+  const sources = await saveSources(uuid, draft.sources);
+  if (!sources.ok) return { ...sources, uuid };
 
   return { ok: true, uuid };
 }
@@ -309,6 +358,180 @@ export async function movePrinciple(
     ...municipal.filter((r) => !r.isActive),
   ];
   return applyOrder(renumber(next), municipal);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+ * The school's own principles.
+ *
+ * RLS already permits every write below: `app.can_write_scoped` returns true for
+ * (scope='school' AND school_id = app.auth_school_id()), and principle_rubric_levels
+ * resolves its scope through the parent row. No policy change was needed — only this
+ * client layer and the slot constraints from migration 20.
+ * ──────────────────────────────────────────────────────────────────────────────── */
+
+export interface SchoolOwner {
+  /** profiles.school_id of the signed-in principal — the row's owner. */
+  schoolId: string;
+  /** auth.uid(), for principles.created_by. */
+  userId: string;
+}
+
+/** A blank draft for the lean wizard: identity defaults + four named, undescribed levels. */
+export const emptySchoolPrincipleDraft = (levelNames: string[]): PrincipleDraft => ({
+  ...emptyPrincipleDraft(SCHOOL_SLOT_BASE),
+  levels: [1, 2, 3, 4].map((level) => ({
+    level,
+    name: levelNames[level - 1] ?? '',
+    description: '',
+  })),
+});
+
+/**
+ * Level names to pre-fill a new rubric with, taken from the principles already loaded.
+ *
+ * The radar legend (`RadarChart`) only prints a level's name when every principle that
+ * defines it agrees on the exact string, so inventing new wording here would blank the
+ * legend the moment the first school saved. Reusing the municipality's own vocabulary
+ * keeps it intact and honours the "dynamic content lives in the DB" rule — the literal
+ * fallback is for an empty database, not a second copy of live content.
+ */
+export function defaultLevelNames(rubrics: PrincipleMaturity[]): string[] {
+  const FALLBACK = ['מתהווה', 'מתפתח', 'מבוסס', 'מוביל'];
+
+  return [1, 2, 3, 4].map((level) => {
+    const names = new Set(
+      rubrics
+        .map((r) => r.levels.find((l) => l.level === level)?.name.trim())
+        .filter((n): n is string => !!n),
+    );
+    return names.size === 1 ? [...names][0] : FALLBACK[level - 1];
+  });
+}
+
+/**
+ * The lowest free slot for this school, or null when both are taken.
+ *
+ * Lowest-free rather than max+1: `order_index` is bounded above at 1001, so max+1 after a
+ * delete would produce 1002 and be rejected by the CHECK. Reuse is therefore mandatory,
+ * not an optimisation — and it is why deleting must also purge the React state keyed by
+ * the freed index (see `handlePrincipleDeleted` in App).
+ */
+export async function nextSchoolSlot(schoolId: string): Promise<number | null> {
+  const { data } = await supabase
+    .from('principles')
+    .select('order_index')
+    .eq('scope', 'school')
+    .eq('school_id', schoolId);
+
+  const taken = new Set((data ?? []).map((r) => r.order_index));
+  for (let i = 0; i < SCHOOL_PRINCIPLE_SLOTS; i++) {
+    const slot = SCHOOL_SLOT_BASE + i;
+    if (!taken.has(slot)) return slot;
+  }
+  return null;
+}
+
+const CAP_REACHED = `לבית הספר כבר ${SCHOOL_PRINCIPLE_SLOTS} עקרונות ייחודיים.`;
+
+/**
+ * Create or update this school's own principle.
+ *
+ * Writes only the lean wizard's columns, and never touches `principle_sources`: a school
+ * principle has no sources UI, and replace-in-place would silently delete rows it cannot
+ * show. The DB is the arbiter of the two-slot cap — the pre-flight `nextSchoolSlot` read
+ * only buys a better error message; `principles_school_slot_uq` is what actually stops
+ * two browser tabs saving in the same millisecond.
+ */
+export async function saveSchoolPrinciple(
+  draft: PrincipleDraft,
+  owner: SchoolOwner,
+): Promise<SaveResult & { uuid?: string; orderIndex?: number }> {
+  if (draft.title.trim().length < 2) return { ok: false, error: 'יש להזין שם לעיקרון.' };
+
+  let uuid = draft.uuid;
+  let orderIndex = draft.orderIndex;
+
+  if (uuid) {
+    const { error } = await supabase.from('principles').update(leanColumns(draft)).eq('id', uuid);
+    if (error) return { ok: false, error: error.message };
+  } else {
+    const slot = await nextSchoolSlot(owner.schoolId);
+    if (slot === null) return { ok: false, error: CAP_REACHED };
+
+    const { data, error } = await supabase
+      .from('principles')
+      .insert({
+        ...leanColumns(draft),
+        // principles_scope_ck: a school principle must carry a school.
+        scope: 'school',
+        municipality_id: null,
+        school_id: owner.schoolId,
+        order_index: slot,
+        is_active: true,
+        created_by: owner.userId,
+      })
+      .select('id, order_index')
+      .single();
+
+    if (error || !data) {
+      // 23505 = the slot index; 23514 = the range CHECK. Both mean the same thing to the
+      // principal, but only the first can happen while she is looking at a "1/2" badge.
+      if (error?.code === '23505') {
+        return { ok: false, error: 'נוצר בינתיים עיקרון נוסף בחלון אחר. רעננו את הדף ונסו שוב.' };
+      }
+      if (error?.code === '23514') return { ok: false, error: CAP_REACHED };
+      return { ok: false, error: error?.message ?? 'שמירת העיקרון נכשלה.' };
+    }
+
+    uuid = data.id;
+    orderIndex = data.order_index;
+  }
+
+  const rubric = await saveRubric(uuid, draft.levels);
+  if (!rubric.ok) return { ...rubric, uuid, orderIndex };
+
+  return { ok: true, uuid, orderIndex };
+}
+
+/** What deleting a school principle will destroy — all of it this school's own rows. */
+export interface SchoolPrincipleFootprint {
+  assessed: boolean;
+  activities: number;
+  hasVision: boolean;
+  focusRoles: string[];
+}
+
+export async function schoolPrincipleFootprint(uuid: string): Promise<SchoolPrincipleFootprint> {
+  const [assessments, activities, plans, focus] = await Promise.all([
+    supabase.from('plan_assessments').select('id').eq('principle_id', uuid),
+    supabase.from('plan_activities').select('id').eq('principle_id', uuid),
+    supabase.from('plan_principle_plans').select('victory_vision').eq('principle_id', uuid),
+    supabase.from('plan_focus').select('role').eq('principle_id', uuid),
+  ]);
+
+  return {
+    assessed: !!assessments.data?.length,
+    activities: activities.data?.length ?? 0,
+    hasVision: !!plans.data?.some((r) => r.victory_vision.trim()),
+    focusRoles: (focus.data ?? []).map((r) => r.role),
+  };
+}
+
+/**
+ * Hard-delete a school's own principle — unlike a municipal one, which may only be hidden.
+ *
+ * Everything that cascades (plan_focus, plan_assessments, plan_principle_plans,
+ * plan_activities, principle_rubric_levels, principle_sources) belongs to a plan of this
+ * same school, so the blast radius is the caller's own data and the confirm dialog names
+ * it. `is_active = false` would instead leave an invisible row holding one of the two
+ * slots forever, with no UI able to reach it.
+ *
+ * The freed slot is reused by the next create, so the caller MUST purge the in-memory
+ * state keyed by `orderIndex` or the debounced saves will re-attach it to the next one.
+ */
+export async function deleteSchoolPrinciple(uuid: string): Promise<SaveResult> {
+  const { error } = await supabase.from('principles').delete().eq('id', uuid);
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 /**

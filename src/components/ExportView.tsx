@@ -89,7 +89,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
   config: dbConfig,
   onUpdateConfig,
 }) => {
-  const { principles, shortTitles } = usePrinciples();
+  const { principles, shortTitles, displayNumbers } = usePrinciples();
   // `all`, not the active subset: a retired audience must keep its label on activities
   // that already reference it, or it silently disappears from the exported document.
   const { all: allAudiences } = useAudiences();
@@ -201,7 +201,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60" style={{ borderRightColor: accent, borderRightWidth: 4 }}>
       <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{label}</span>
       <p className="text-sm font-bold text-slate-900 mt-0.5">
-        {id ? `עיקרון ${id}: ${shortTitles[id] ?? ''}` : 'טרם נבחר'}
+        {id ? `עיקרון ${displayNumbers[id] ?? id}: ${shortTitles[id] ?? ''}` : 'טרם נבחר'}
       </p>
       {reason ? (
         <p className="text-xs text-slate-600 leading-relaxed mt-2 whitespace-pre-line text-justify">{reason}</p>
@@ -475,7 +475,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
                     const ans = answers[p.id];
                     return (
                       <tr key={p.id}>
-                        <td className="border border-slate-200 p-2 font-mono text-center">{p.id}</td>
+                        <td className="border border-slate-200 p-2 font-mono text-center">{displayNumbers[p.id] ?? p.id}</td>
                         <td className="border border-slate-200 p-2 font-bold">{shortTitles[p.id] ?? p.title}</td>
                         <td className="border border-slate-200 p-2 font-mono font-bold text-center bg-slate-50">
                           {ans ? (scores[p.id] || 1).toFixed(1) : '—'}
@@ -504,7 +504,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
                     <div key={p.id} className="border border-slate-200 rounded-xl overflow-hidden" style={{ borderRightColor: p.accentColor, borderRightWidth: 4 }}>
                       <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
                         <i className={p.icon} style={{ color: p.accentColor }}></i>
-                        <span className="font-bold text-sm text-slate-900">עיקרון {p.id}: {shortTitles[p.id] ?? p.title}</span>
+                        <span className="font-bold text-sm text-slate-900">עיקרון {displayNumbers[p.id] ?? p.id}: {shortTitles[p.id] ?? p.title}</span>
                       </div>
                       <div className="p-4 space-y-3">
                         {plan.activities.map((a) => {

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { AdminViewer } from '../../lib/adminAuth';
 import { rankedByPhrase, savePrinciple, type PrincipleDraft } from '../../lib/principlesAdmin';
-import { COLOR_CHOICES } from '../../lib/principleTheme';
+import { COLOR_CHOICES, ICON_CHOICES } from '../../lib/principleTheme';
 import { Collapsible } from '../Collapsible';
 import { ArrayField, ConfirmDialog, Labeled, inputClass } from './fields';
 
@@ -13,13 +13,6 @@ interface Props {
   onCancel: () => void;
   onSaved: (message: string) => void;
 }
-
-const ICON_CHOICES = [
-  'fa-solid fa-graduation-cap', 'fa-solid fa-user-tie', 'fa-solid fa-robot',
-  'fa-solid fa-microchip', 'fa-solid fa-shapes', 'fa-solid fa-lightbulb',
-  'fa-solid fa-compass', 'fa-solid fa-people-group', 'fa-solid fa-seedling',
-  'fa-solid fa-puzzle-piece', 'fa-solid fa-globe', 'fa-solid fa-heart',
-];
 
 const Field: React.FC<{
   label: string;

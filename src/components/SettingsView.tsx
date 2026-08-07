@@ -1,6 +1,16 @@
 import React, { useRef, useState } from 'react';
-import { ActionPlan, SchoolProfile } from '../types';
+import { ActionPlan, Principle, SchoolProfile } from '../types';
 import { version } from '../../package.json';
+import { usePrinciples } from '../lib/PrinciplesContext';
+import { principleTheme } from '../lib/principleTheme';
+import {
+  deleteSchoolPrinciple,
+  schoolPrincipleFootprint,
+  SCHOOL_PRINCIPLE_SLOTS,
+  type SchoolPrincipleFootprint,
+} from '../lib/principlesAdmin';
+import { SchoolPrincipleWizard } from './SchoolPrincipleWizard';
+import { ConfirmDialog } from './admin/fields';
 
 interface SettingsViewProps {
   profile: SchoolProfile;
@@ -14,6 +24,16 @@ interface SettingsViewProps {
   onRemoveLogo: () => void | Promise<void>;
   onUploadFiles: (files: File[]) => void | Promise<void>;
   onRemoveFile: (index: number) => void | Promise<void>;
+  /** Owner of any principle created here. Null until the school session resolves. */
+  schoolId: string | null;
+  userId: string;
+  /** Refetch the principle set after a create or an edit. */
+  onPrinciplesChanged: () => void;
+  /**
+   * A delete frees the order_index slot for the next create, so App must drop the
+   * in-memory state keyed by it before the debounced saves re-attach it.
+   */
+  onPrincipleDeleted: (orderIndex: number) => void;
 }
 
 const fmtSize = (bytes: number) => {
@@ -65,6 +85,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRemoveLogo,
   onUploadFiles,
   onRemoveFile,
+  schoolId,
+  userId,
+  onPrinciplesChanged,
+  onPrincipleDeleted,
 }) => {
   const logoInput = useRef<HTMLInputElement>(null);
   const filesInput = useRef<HTMLInputElement>(null);
@@ -72,6 +96,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
+
+  // ---- The school's own principles -------------------------------------------------
+  const { principles, rubrics, displayNumbers } = usePrinciples();
+  const owned = principles.filter((p) => p.scope === 'school');
+  const slotsLeft = SCHOOL_PRINCIPLE_SLOTS - owned.length;
+
+  const [wizard, setWizard] = useState<{ editing?: Principle } | null>(null);
+  const [notice, setNotice] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<Principle | null>(null);
+  const [footprint, setFootprint] = useState<SchoolPrincipleFootprint | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const askDelete = async (p: Principle) => {
+    setPendingDelete(p);
+    setFootprint(null);
+    setFootprint(await schoolPrincipleFootprint(p.uuid));
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    const result = await deleteSchoolPrinciple(pendingDelete.uuid);
+    setDeleting(false);
+    if (!result.ok) {
+      setNotice(result.error ?? 'המחיקה נכשלה.');
+      setPendingDelete(null);
+      return;
+    }
+    onPrincipleDeleted(pendingDelete.id);
+    setNotice(`"${pendingDelete.title}" נמחק.`);
+    setPendingDelete(null);
+  };
 
   const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -257,7 +313,145 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </Field>
       </Card>
 
-      {/* ============ 2. Reset diagnostic ============ */}
+      {/* ============ 2. The school's own principles ============ */}
+      <Card
+        icon="fa-solid fa-star"
+        title="העקרונות הייחודיים של בית הספר"
+        subtitle={`עד ${SCHOOL_PRINCIPLE_SLOTS} עקרונות משלכם, לצד העקרונות העירוניים. עיקרון ייחודי מתנהג ככל עיקרון אחר — הוא מופיע בתפריט, נכלל באבחון ובמפת העכביש, אפשר לתכנן עליו יוזמות בית-ספריות, והוא נכנס למסמך תוכנית העבודה.`}
+        accent="text-amber-600 bg-amber-50"
+      >
+        {notice && (
+          <p className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+            {notice}
+          </p>
+        )}
+
+        {owned.length === 0 ? (
+          <p className="text-xs text-slate-400 italic">
+            עדיין לא הוגדר עיקרון ייחודי. אם יש בבית הספר תחום ייחודי שאינו מיוצג בעקרונות
+            העירוניים — זה המקום להוסיף אותו.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {owned.map((p) => {
+              const colors = principleTheme(p.colorName);
+              return (
+                <li
+                  key={p.uuid}
+                  className="flex items-center gap-3 border border-slate-200 rounded-xl p-3 bg-slate-50/40"
+                >
+                  <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${colors.badge}`}>
+                    <i className={p.icon} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-slate-900 truncate">{p.title}</p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      עיקרון {displayNumbers[p.id] ?? p.id}
+                      {p.shortLabel ? ` · על מפת העכביש: ${p.shortLabel}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setNotice(''); setWizard({ editing: p }); }}
+                    aria-label={`עריכת ${p.title}`}
+                    className="text-slate-400 hover:text-primary-600 p-2 rounded-lg hover:bg-white cursor-pointer"
+                  >
+                    <i className="fa-solid fa-pen-to-square text-sm" />
+                  </button>
+                  <button
+                    onClick={() => { setNotice(''); askDelete(p); }}
+                    aria-label={`מחיקת ${p.title}`}
+                    className="text-slate-400 hover:text-rose-600 p-2 rounded-lg hover:bg-white cursor-pointer"
+                  >
+                    <i className="fa-solid fa-trash-can text-sm" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setNotice(''); setWizard({}); }}
+            disabled={slotsLeft <= 0 || !schoolId}
+            title={
+              slotsLeft <= 0
+                ? `בית הספר כבר הגדיר ${SCHOOL_PRINCIPLE_SLOTS} עקרונות ייחודיים. כדי להוסיף אחר, יש למחוק אחד מהם.`
+                : undefined
+            }
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <i className="fa-solid fa-plus"></i>
+            הוספת עיקרון ייחודי
+          </button>
+          <span className="text-[11px] font-bold text-slate-400">
+            {owned.length}/{SCHOOL_PRINCIPLE_SLOTS} בשימוש
+          </span>
+        </div>
+      </Card>
+
+      {wizard && schoolId && (
+        <SchoolPrincipleWizard
+          owner={{ schoolId, userId }}
+          editing={
+            wizard.editing
+              ? {
+                  principle: wizard.editing,
+                  rubric: rubrics.find((r) => r.id === wizard.editing!.id),
+                }
+              : undefined
+          }
+          used={owned.length}
+          onClose={() => setWizard(null)}
+          onSaved={(message) => {
+            setWizard(null);
+            setNotice(message);
+            onPrinciplesChanged();
+          }}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`למחוק את "${pendingDelete.title}"?`}
+          confirmLabel="מחיקה לצמיתות"
+          tone="danger"
+          busy={deleting || !footprint}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        >
+          {!footprint ? (
+            <p>בודקים מה תלוי בעיקרון הזה…</p>
+          ) : (
+            <>
+              <p>יימחקו יחד עם העיקרון, ואי אפשר לשחזר:</p>
+              <ul className="space-y-1 pr-4 list-disc marker:text-rose-400">
+                <li>העיקרון וארבע רמות הבשלות שלו</li>
+                {footprint.assessed && <li>המיפוי העצמי שביצעתם בעיקרון הזה</li>}
+                {footprint.activities > 0 && (
+                  <li>
+                    {footprint.activities === 1
+                      ? 'פעילות אחת בתוכנית העבודה'
+                      : `${footprint.activities} פעילויות בתוכנית העבודה`}
+                  </li>
+                )}
+                {footprint.hasVision && <li>תמונת הניצחון שכתבתם עליו</li>}
+                {footprint.focusRoles.includes('strength') && (
+                  <li>בחירתו כעוגן העוצמה — המסמך יחזור ל&quot;טרם נבחר&quot;</li>
+                )}
+                {footprint.focusRoles.includes('breakthrough') && (
+                  <li>בחירתו כיעד פריצת דרך — המסמך יחזור ל&quot;טרם נבחר&quot;</li>
+                )}
+              </ul>
+              <p className="text-slate-500">
+                העקרונות העירוניים אינם מושפעים, ומספרי העקרונות שאחריו יתעדכנו.
+              </p>
+            </>
+          )}
+        </ConfirmDialog>
+      )}
+
+      {/* ============ 3. Reset diagnostic ============ */}
       <Card
         icon="fa-solid fa-rotate-left"
         title="איפוס נתוני האבחון"
@@ -273,7 +467,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </Card>
 
-      {/* ============ 3. Feedback ============ */}
+      {/* ============ 4. Feedback ============ */}
       <Card
         icon="fa-solid fa-comment-dots"
         title="שליחת משוב"
@@ -307,7 +501,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </Card>
 
-      {/* ============ 4. About ============ */}
+      {/* ============ 5. About ============ */}
       <Card
         icon="fa-solid fa-circle-info"
         title="אודות המערכת"

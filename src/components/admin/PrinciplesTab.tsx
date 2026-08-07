@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { usePrinciples } from '../../lib/PrinciplesContext';
+import { supabase } from '../../lib/supabase';
 import { type useActivityBank } from '../../lib/activityBank';
 import type { AdminViewer } from '../../lib/adminAuth';
-import type { Principle } from '../../types';
+import { principleTheme } from '../../lib/principleTheme';
+import type { Principle, PrincipleMaturity } from '../../types';
 import {
   countAssessedSchools,
   draftFromPrinciple,
@@ -26,6 +28,97 @@ interface Props {
 }
 
 /**
+ * A school's own principle, read-only.
+ *
+ * The city admin may read it (`app.can_read_scoped` has a city_admin branch for school
+ * scope) but may not write it — there is no city_admin branch on the school side of
+ * `can_write_scoped`. So this shows content without a single edit control, and says so:
+ * the value is knowing what schools are growing on their own, not governing it.
+ */
+const SchoolPrincipleViewer: React.FC<{
+  principle: Principle;
+  rubric?: PrincipleMaturity;
+  schoolName: string;
+  onClose: () => void;
+}> = ({ principle, rubric, schoolName, onClose }) => {
+  const colors = principleTheme(principle.colorName);
+
+  return (
+    <div
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[95] flex items-start justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+      dir="rtl"
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-xl w-full my-8 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${colors.badge}`}>
+              <i className={principle.icon} />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-slate-800">{principle.title}</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {schoolName ? `${schoolName} · ` : ''}עיקרון ייחודי בית-ספרי
+                {principle.shortLabel ? ` · על מפת העכביש: ${principle.shortLabel}` : ''}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="סגירה"
+            className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
+          >
+            <i className="fa-solid fa-xmark text-lg" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+          <p className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+            עיקרון של בית ספר — לצפייה בלבד. רק בית הספר עצמו יכול לערוך או למחוק אותו.
+          </p>
+
+          {!!principle.shortSummary.trim() && (
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-600">תקציר</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{principle.shortSummary}</p>
+            </div>
+          )}
+
+          {!!principle.rationale.trim() && (
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-600">הרציונל</p>
+              <p className="text-sm text-slate-700 leading-relaxed text-justify">{principle.rationale}</p>
+            </div>
+          )}
+
+          {!!rubric?.levels.length && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-slate-600">ארבע רמות הבשלות</p>
+              {rubric.levels.map((l) => (
+                <div key={l.level} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 font-mono font-bold text-xs grid place-items-center shrink-0">
+                    {l.level}
+                  </span>
+                  <div className="space-y-0.5 min-w-0">
+                    <p className="text-xs font-bold text-slate-900">{l.name || `רמה ${l.level}`}</p>
+                    {!!l.description.trim() && (
+                      <p className="text-xs text-slate-600 leading-relaxed">{l.description}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * The municipal principle set: order, activation, and the door into the full editor.
  *
  * This deliberately does not reuse `PrincipleMenu`. That component is the school
@@ -43,11 +136,26 @@ export const PrinciplesTab: React.FC<Props> = ({ viewer, onNotice, bank: bankSta
   const [editing, setEditing] = useState<PrincipleDraft | null>(null);
   const [assessed, setAssessed] = useState<Record<string, number>>({});
   const [confirmHide, setConfirmHide] = useState<Principle | null>(null);
+  const [viewing, setViewing] = useState<Principle | null>(null);
+  const [schoolNames, setSchoolNames] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     countAssessedSchools().then(setAssessed);
   }, [principles]);
+
+  // Attribute each school-owned principle to its school. Read straight from the table —
+  // `schools_select` already grants a city admin its own municipality, and routing through
+  // `schoolsAdmin` would make this panel depend on the service-role endpoint, which may be
+  // absent in dev.
+  useEffect(() => {
+    supabase
+      .from('schools')
+      .select('id, name')
+      .then(({ data }) =>
+        setSchoolNames(Object.fromEntries((data ?? []).map((s) => [s.id, s.name]))),
+      );
+  }, []);
 
   // Only municipal rows are ours to reorder — a school's own principle is readable
   // here for oversight but RLS refuses the write.
@@ -201,22 +309,34 @@ export const PrinciplesTab: React.FC<Props> = ({ viewer, onNotice, bank: bankSta
         {!!schoolOwned.length && (
           <div className="space-y-2 pt-1">
             <p className="text-[11px] font-bold text-slate-400">
-              עקרונות בית-ספריים — לצפייה בלבד
+              עקרונות בית-ספריים — לצפייה בלבד (עד שניים לכל בית ספר)
             </p>
             <div className="flex flex-wrap gap-2">
               {schoolOwned.map((p) => (
-                <span
+                <button
                   key={p.uuid}
-                  title="עיקרון של בית ספר — רק הוא יכול לשנות אותו"
-                  className="text-xs font-bold px-3 py-1.5 rounded-full border bg-amber-50 text-amber-700 border-amber-100"
+                  type="button"
+                  onClick={() => setViewing(p)}
+                  title="עיקרון של בית ספר — רק הוא יכול לשנות אותו. לחצו לצפייה בתוכן."
+                  className="text-xs font-bold px-3 py-1.5 rounded-full border bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100 cursor-pointer"
                 >
+                  {schoolNames[p.schoolId ?? ''] ? `${schoolNames[p.schoolId!]} · ` : ''}
                   {p.title}
-                </span>
+                </button>
               ))}
             </div>
           </div>
         )}
       </Section>
+
+      {viewing && (
+        <SchoolPrincipleViewer
+          principle={viewing}
+          rubric={rubrics.find((r) => r.id === viewing.id)}
+          schoolName={schoolNames[viewing.schoolId ?? ''] ?? ''}
+          onClose={() => setViewing(null)}
+        />
+      )}
 
       {confirmHide && (
         <ConfirmDialog

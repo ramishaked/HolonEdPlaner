@@ -57,6 +57,7 @@ export default function App() {
     principles,
     shortTitles,
     orderToId,
+    displayNumbers,
     loading: principlesLoading,
     failed: principlesFailed,
     reload: reloadPrinciples,
@@ -259,6 +260,25 @@ export default function App() {
     }, 700);
     return () => clearTimeout(t);
   }, [exportConfig, dataLoaded, planId]);
+
+  /**
+   * A school principle was deleted — drop every in-memory copy keyed by its order_index.
+   *
+   * The freed index is a slot (1000 or 1001) that the next create reuses immediately.
+   * Without this purge, the debounced saves above would write the deleted principle's
+   * assessment, activity plan and focus role against the *new* principle's uuid within
+   * 700ms, silently attaching one principle's work to another.
+   */
+  const handlePrincipleDeleted = (orderIndex: number) => {
+    setAnswers(({ [orderIndex]: _answer, ...rest }) => rest);
+    setPrinciplePlans(({ [orderIndex]: _plan, ...rest }) => rest);
+    setActionPlan((prev) => ({
+      ...prev,
+      strengths: prev.strengths.filter((id) => id !== orderIndex),
+      breakthroughs: prev.breakthroughs.filter((id) => id !== orderIndex),
+    }));
+    reloadPrinciples();
+  };
 
   // ---- school logo + attachments (Supabase Storage) -------------------------
   const handleUploadLogo = async (file: File) => {
@@ -616,6 +636,10 @@ export default function App() {
             onRemoveLogo={handleRemoveLogo}
             onUploadFiles={handleUploadFiles}
             onRemoveFile={handleRemoveFile}
+            schoolId={schoolId}
+            userId={session.user.id}
+            onPrinciplesChanged={reloadPrinciples}
+            onPrincipleDeleted={handlePrincipleDeleted}
           />
         ) : currentStep === 'export' ? (
           <>
@@ -727,7 +751,7 @@ export default function App() {
                   const ans = answers[p.id];
                   return (
                     <tr key={p.id}>
-                      <td className="border border-slate-200 p-2.5 font-mono text-center">{p.id}</td>
+                      <td className="border border-slate-200 p-2.5 font-mono text-center">{displayNumbers[p.id] ?? p.id}</td>
                       <td className="border border-slate-200 p-2.5 font-bold">{p.title}</td>
                       <td className="border border-slate-200 p-2.5 font-mono font-bold text-center bg-slate-50">{score.toFixed(1)}</td>
                       <td className="border border-slate-200 p-2.5 text-slate-700 italic">{ans?.evidence || 'לא תועדו נתונים/הערות'}</td>
@@ -752,7 +776,7 @@ export default function App() {
                 <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">● עוגן העוצמה הבית-ספרי (לשימור ושכלול):</h4>
                 <p className="text-sm text-primary-950 font-bold mt-1">
                   {actionPlan.strengths[0]
-                    ? `עיקרון ${actionPlan.strengths[0]}: ${principles.find(p => p.id === actionPlan.strengths[0])?.title}`
+                    ? `עיקרון ${displayNumbers[actionPlan.strengths[0]] ?? actionPlan.strengths[0]}: ${principles.find(p => p.id === actionPlan.strengths[0])?.title}`
                     : 'טרם נבחר עוגן'}
                 </p>
                 <div className="text-xs text-slate-700 mt-2 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed text-justify">
@@ -764,7 +788,7 @@ export default function App() {
                 <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">● יעד פריצת דרך ראשון להורדה לשטח:</h4>
                 <p className="text-sm text-primary-950 font-bold mt-1">
                   {actionPlan.breakthroughs[0]
-                    ? `עיקרון ${actionPlan.breakthroughs[0]}: ${principles.find(p => p.id === actionPlan.breakthroughs[0])?.title}`
+                    ? `עיקרון ${displayNumbers[actionPlan.breakthroughs[0]] ?? actionPlan.breakthroughs[0]}: ${principles.find(p => p.id === actionPlan.breakthroughs[0])?.title}`
                     : 'טרם נבחר יעד'}
                 </p>
                 <div className="text-xs text-slate-700 mt-2 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed text-justify">
@@ -776,7 +800,7 @@ export default function App() {
                 <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">● יעד פריצת דרך שני להורדה לשטח:</h4>
                 <p className="text-sm text-primary-950 font-bold mt-1">
                   {actionPlan.breakthroughs[1]
-                    ? `עיקרון ${actionPlan.breakthroughs[1]}: ${principles.find(p => p.id === actionPlan.breakthroughs[1])?.title}`
+                    ? `עיקרון ${displayNumbers[actionPlan.breakthroughs[1]] ?? actionPlan.breakthroughs[1]}: ${principles.find(p => p.id === actionPlan.breakthroughs[1])?.title}`
                     : 'טרם נבחר יעד'}
                 </p>
                 <div className="text-xs text-slate-700 mt-2 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed text-justify">

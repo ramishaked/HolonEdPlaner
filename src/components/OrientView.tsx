@@ -32,7 +32,12 @@ export const OrientView: React.FC<OrientViewProps> = ({ scores, answers, selecte
       {/* Detail — the stage */}
       <main className="flex-1 min-w-0">
         {selectedPrinciple ? (
-          <PrincipleDetailView principle={selectedPrinciple} scores={scores} assessed={!!answers[selectedPrinciple.id]} />
+          <PrincipleDetailView
+            principle={selectedPrinciple}
+            scores={scores}
+            assessed={!!answers[selectedPrinciple.id]}
+            selectedLevel={answers[selectedPrinciple.id]?.selectedMaturityLevel}
+          />
         ) : (
           <section className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
             <div className="space-y-6 text-right">

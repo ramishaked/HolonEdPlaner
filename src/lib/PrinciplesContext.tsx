@@ -18,6 +18,7 @@ const EMPTY: LoadedPrinciples = {
   rubrics: [],
   shortTitles: {},
   orderToId: {},
+  displayNumbers: {},
 };
 
 const PrinciplesContext = createContext<PrinciplesValue>({
