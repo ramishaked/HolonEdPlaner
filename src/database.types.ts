@@ -843,6 +843,10 @@ export type Database = {
         Args: { p_plan_id: string; p_focus: Json }
         Returns: undefined
       }
+      delete_unadopted_bank_item: {
+        Args: { p_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       activity_priority: "high" | "medium" | "low"

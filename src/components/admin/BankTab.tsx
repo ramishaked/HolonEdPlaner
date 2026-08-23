@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { usePrinciples } from '../../lib/PrinciplesContext';
 import { audienceLabel, type useAudiences } from '../../lib/audiences';
 import { type useActivityBank, type BankItem } from '../../lib/activityBank';
-import { moveBankItem, setActivityActive } from '../../lib/activityBankAdmin';
+import { countAdoptions, deleteUnadoptedActivity, moveBankItem, setActivityActive } from '../../lib/activityBankAdmin';
 import type { AdminViewer } from '../../lib/adminAuth';
 import { SOURCE_META, sourceMeta } from '../../planBank';
 import type { TaskSource } from '../../types';
@@ -37,6 +37,16 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
   const [principleFilter, setPrincipleFilter] = useState<number | 'all'>('all');
   const [sourceFilter, setSourceFilter] = useState<TaskSource | 'all'>('all');
   const [confirmHide, setConfirmHide] = useState<BankItem | null>(null);
+  /** Delete dialog state: the item plus how many schools hold it (null while counting). */
+  const [confirmDelete, setConfirmDelete] = useState<
+    { item: BankItem; adoption: { schools: number; rows: number } | null | 'error' } | null
+  >(null);
+
+  const askDelete = async (item: BankItem) => {
+    setConfirmDelete({ item, adoption: null });
+    const adoption = await countAdoptions(item.key);
+    setConfirmDelete((cur) => (cur?.item.key === item.key ? { item, adoption: adoption ?? 'error' } : cur));
+  };
   const [busy, setBusy] = useState(false);
 
   // `bank` holds active items only; the hidden ones live in `all` and are listed apart.
@@ -331,9 +341,17 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
                       onClick={() => setConfirmHide(item)}
                       title="הסתרה מבתי הספר"
                       aria-label={`הסתרת ${item.title}`}
-                      className="text-slate-300 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                      className="text-slate-300 hover:text-amber-600 hover:bg-amber-50 p-1.5 rounded-lg transition-colors cursor-pointer"
                     >
                       <i className="fa-solid fa-eye-slash text-xs" />
+                    </button>
+                    <button
+                      onClick={() => askDelete(item)}
+                      title="מחיקה (רק אם אף בית ספר לא אימץ)"
+                      aria-label={`מחיקת ${item.title}`}
+                      className="text-slate-300 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <i className="fa-solid fa-trash-can text-xs" />
                     </button>
                   </div>
                 ) : (
@@ -373,6 +391,17 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
                     <i className="fa-solid fa-rotate-left ml-1.5 text-[10px]" aria-hidden="true" />
                     החזרה
                   </button>
+                  {item.scope === 'municipal' && (
+                    <button
+                      onClick={() => askDelete(item)}
+                      disabled={busy}
+                      title="מחיקה (רק אם אף בית ספר לא אימץ)"
+                      aria-label={`מחיקת ${item.title}`}
+                      className="text-slate-300 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
+                    >
+                      <i className="fa-solid fa-trash-can text-xs" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -389,6 +418,56 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
           onSaved={reload}
         />
       )}
+
+      {confirmDelete && (() => {
+        const { item, adoption } = confirmDelete;
+        const counting = adoption === null;
+        const failed = adoption === 'error';
+        const adopted = !counting && !failed && adoption.schools > 0;
+        const canDelete = !counting && !failed && !adopted;
+        return (
+          <ConfirmDialog
+            title={adopted ? 'אי אפשר למחוק — הפעילות כבר בשימוש' : 'מחיקת פעילות מהבנק'}
+            confirmLabel={adopted ? 'הסתרה במקום' : failed ? 'הסתרה בינתיים' : 'מחיקה לצמיתות'}
+            tone={canDelete ? 'danger' : 'neutral'}
+            busy={busy || counting}
+            onConfirm={async () => {
+              if (adopted || failed) {
+                const ok = await run(() => setActivityActive(item.key, false), `"${item.title}" הוסתרה מבתי הספר.`);
+                if (ok) setConfirmDelete(null);
+                return;
+              }
+              const ok = await run(() => deleteUnadoptedActivity(item.key), `"${item.title}" נמחקה מהבנק.`);
+              if (ok) setConfirmDelete(null);
+            }}
+            onCancel={() => setConfirmDelete(null)}
+          >
+            <p>
+              הפעילות <strong className="text-slate-800">{item.title}</strong>
+            </p>
+            {counting && <p className="text-slate-500">בודקת אם בתי ספר כבר הוסיפו אותה לתוכנית…</p>}
+            {failed && (
+              <p className="text-rose-600">לא הצלחנו לבדוק את השימוש בפעילות. נסו שוב, או הסתירו אותה בינתיים.</p>
+            )}
+            {adopted && (
+              <>
+                <p>
+                  נמצאת כבר בתוכנית של <strong className="text-slate-800">{adoption.schools}</strong>{' '}
+                  {adoption.schools === 1 ? 'בית ספר' : 'בתי ספר'}. מחיקה הייתה משאירה בתוכניות שלהם
+                  שורה יתומה ומעלימה מהדשבורד העירוני את העובדה שאימצו אותה.
+                </p>
+                <p>אפשר להסתיר אותה: היא תרד מהבנק, ותוכניות קיימות לא ייפגעו.</p>
+              </>
+            )}
+            {canDelete && (
+              <>
+                <p>אף בית ספר לא הוסיף אותה לתוכנית, ולכן אפשר למחוק אותה לגמרי, כולל השיוך לעקרונות.</p>
+                <p className="font-bold text-rose-700">המחיקה סופית ואין ממנה שחזור.</p>
+              </>
+            )}
+          </ConfirmDialog>
+        );
+      })()}
 
       {confirmHide && (
         <ConfirmDialog

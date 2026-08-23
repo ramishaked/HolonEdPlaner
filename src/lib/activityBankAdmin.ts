@@ -362,3 +362,35 @@ export async function setActivityActive(id: string, active: boolean): Promise<Sa
     .eq('id', id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
+
+/**
+ * How many distinct schools hold this bank item in a plan. The city admin can read
+ * every plan in the municipality, so a direct count is honest; it feeds the delete
+ * dialog only — the authoritative check lives inside `delete_unadopted_bank_item`.
+ */
+export async function countAdoptions(id: string): Promise<{ schools: number; rows: number } | null> {
+  const { data, error } = await supabase
+    .from('plan_activities')
+    .select('plan_id, plans!inner(school_id)')
+    .eq('bank_key', id);
+  if (error || !data) return null;
+  const schools = new Set<string>();
+  for (const row of data) {
+    const plan = row.plans as unknown as { school_id: string } | { school_id: string }[] | null;
+    const sid = Array.isArray(plan) ? plan[0]?.school_id : plan?.school_id;
+    if (sid) schools.add(sid);
+  }
+  return { schools: schools.size, rows: data.length };
+}
+
+/**
+ * Hard delete — only for an item no school has adopted. The DB function re-checks
+ * adoption and ownership atomically, so a stale count in the dialog cannot delete an
+ * item that was adopted a second ago; it simply returns false.
+ */
+export async function deleteUnadoptedActivity(id: string): Promise<SaveResult & { deleted?: boolean }> {
+  const { data, error } = await supabase.rpc('delete_unadopted_bank_item', { p_id: id });
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'הפעילות כבר אומצה על ידי בית ספר, או שאינה ניתנת למחיקה.' };
+  return { ok: true, deleted: true };
+}
