@@ -6,6 +6,7 @@ import { moveBankItem, setActivityActive } from '../../lib/activityBankAdmin';
 import type { AdminViewer } from '../../lib/adminAuth';
 import { sourceMeta } from '../../planBank';
 import { downloadCsv, stampedName, NO_IMPORT_MARKER } from '../../lib/spreadsheet';
+import { downloadImportTemplate } from '../../lib/importTemplate';
 import { ActivityWizard } from '../ActivityWizard';
 import { Section } from './AdminChrome';
 import { ConfirmDialog } from './fields';
@@ -107,6 +108,19 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
         subtitle="הפעילויות שכל בתי הספר רואים במתחם התכנון."
         right={
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                // Municipal principles only — a school's own principle cannot carry
+                // bank activities, so it must not be offered in the dropdown.
+                downloadImportTemplate(principles.filter((p) => p.scope === 'municipal'));
+                onNotice('תבנית האקסל הורדה. מלאו אותה והעלו דרך "אשף הוספת פעילות ← ייבוא מגיליון".');
+              }}
+              title="הורדת תבנית אקסל לטעינת פעילויות (עם שורה לדוגמה, רשימות נפתחות והנחיות)"
+              className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              <i className="fa-solid fa-file-excel" />
+              תבנית לטעינה
+            </button>
             <button
               onClick={exportCsv}
               title="ייצוא לגיליון (CSV)"

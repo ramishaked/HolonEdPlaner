@@ -18,6 +18,7 @@ import {
 } from '../lib/activityBankAdmin';
 import { guessMapping, parseSheet, sheetFromMatrix, type ParsedSheet } from '../lib/spreadsheet';
 import { isXlsxName, readXlsxMatrix } from '../lib/xlsx';
+import { downloadImportTemplate } from '../lib/importTemplate';
 import { Chip, Labeled, inputClass } from './admin/fields';
 import type { AdminViewer } from '../lib/adminAuth';
 import { SOURCE_META } from '../planBank';
@@ -565,7 +566,7 @@ const BulkImport: React.FC<{
         if (next[value]) continue;
         // One cell may name several principles ("א; ב"), so each part is matched on
         // its own — a typo in one part must not hide the others.
-        const parts = value.split(/[;|,\n]+/).map((v) => v.trim()).filter(Boolean);
+        const parts = value.split(/[;|,·\n]+/).map((v) => v.trim()).filter(Boolean);
         const matched = principles
           .filter((p) => {
             const t = p.title.toLowerCase();
@@ -731,13 +732,13 @@ const BulkImport: React.FC<{
             </label>
             <p className="text-[11px] text-slate-500 mt-3">
               מתחילים מאפס?{' '}
-              <a
-                href="/templates/activity-import-template.xlsx"
-                download
-                className="font-bold text-primary-700 hover:underline"
+              <button
+                type="button"
+                onClick={() => downloadImportTemplate(principles)}
+                className="font-bold text-primary-700 hover:underline cursor-pointer"
               >
                 הורדת תבנית אקסל למילוי
-              </a>
+              </button>
               {' '}(כוללת שורה לדוגמה, רשימות נפתחות והנחיות).
             </p>
           </div>
