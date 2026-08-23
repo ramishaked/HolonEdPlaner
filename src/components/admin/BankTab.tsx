@@ -4,7 +4,8 @@ import { audienceLabel, type useAudiences } from '../../lib/audiences';
 import { type useActivityBank, type BankItem } from '../../lib/activityBank';
 import { moveBankItem, setActivityActive } from '../../lib/activityBankAdmin';
 import type { AdminViewer } from '../../lib/adminAuth';
-import { sourceMeta } from '../../planBank';
+import { SOURCE_META, sourceMeta } from '../../planBank';
+import type { TaskSource } from '../../types';
 import { downloadCsv, stampedName, NO_IMPORT_MARKER } from '../../lib/spreadsheet';
 import { downloadImportTemplate } from '../../lib/importTemplate';
 import { ActivityWizard } from '../ActivityWizard';
@@ -34,6 +35,7 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
   const [editing, setEditing] = useState<BankItem | null>(null);
   const [query, setQuery] = useState('');
   const [principleFilter, setPrincipleFilter] = useState<number | 'all'>('all');
+  const [sourceFilter, setSourceFilter] = useState<TaskSource | 'all'>('all');
   const [confirmHide, setConfirmHide] = useState<BankItem | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -41,9 +43,21 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
   const active = useMemo(() => bankItems.filter((i) => i.isActive), [bankItems]);
   const hidden = useMemo(() => bankItems.filter((i) => !i.isActive), [bankItems]);
 
+  /** The principle-filtered set, before source and search — what the source chips count. */
+  const byPrinciple = useMemo(
+    () => (principleFilter === 'all' ? active : (bank[principleFilter] ?? [])),
+    [active, bank, principleFilter],
+  );
+
+  const sourceCounts = useMemo(() => {
+    const counts: Partial<Record<TaskSource, number>> = {};
+    for (const i of byPrinciple) counts[i.source] = (counts[i.source] ?? 0) + 1;
+    return counts;
+  }, [byPrinciple]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const base = principleFilter === 'all' ? active : (bank[principleFilter] ?? []);
+    const base = sourceFilter === 'all' ? byPrinciple : byPrinciple.filter((i) => i.source === sourceFilter);
     if (!q) return base;
     return base.filter(
       (i) =>
@@ -51,7 +65,7 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
         i.short.toLowerCase().includes(q) ||
         i.description.toLowerCase().includes(q),
     );
-  }, [active, bank, principleFilter, query]);
+  }, [byPrinciple, sourceFilter, query]);
 
   /**
    * Ordering is only offered when the visible list IS the principle group being
@@ -59,7 +73,7 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
    * the row somewhere the admin cannot see — better to withhold the control than to
    * move something invisibly.
    */
-  const canReorder = principleFilter !== 'all' && !query.trim();
+  const canReorder = principleFilter !== 'all' && sourceFilter === 'all' && !query.trim();
 
   const run = async (fn: () => Promise<{ ok: boolean; error?: string }>, success: string) => {
     setBusy(true);
@@ -190,11 +204,51 @@ export const BankTab: React.FC<Props> = ({ viewer, onNotice, bank: bankState, au
               );
             })}
           </div>
+
+          {/* Source chips: same pattern, counted inside the current principle filter so
+              the numbers always add up to what is on screen. Sources nobody uses are
+              not listed — an empty chip is noise, not a filter. */}
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="סינון לפי מקור">
+            <span className="text-[11px] text-slate-400 ml-1">מקור:</span>
+            <button
+              type="button"
+              onClick={() => setSourceFilter('all')}
+              aria-pressed={sourceFilter === 'all'}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                sourceFilter === 'all'
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              כל המקורות
+            </button>
+            {(Object.keys(SOURCE_META) as TaskSource[])
+              .filter((src) => (sourceCounts[src] ?? 0) > 0 || sourceFilter === src)
+              .map((src) => {
+                const on = sourceFilter === src;
+                const th = SOURCE_META[src];
+                return (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => setSourceFilter(on ? 'all' : src)}
+                    aria-pressed={on}
+                    style={on ? { backgroundColor: th.accent, borderColor: th.accent } : undefined}
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                      on ? 'text-white' : `${th.badge} hover:brightness-95`
+                    }`}
+                  >
+                    {src}
+                    <span className="font-normal opacity-70"> ({sourceCounts[src] ?? 0})</span>
+                  </button>
+                );
+              })}
+          </div>
         </div>
 
         <p className="text-[11px] text-slate-400">
           {loading ? 'טוען…' : `מוצגות ${filtered.length} מתוך ${active.length} פעילויות`}
-          {!loading && !canReorder && ' · לשינוי הסדר — בחרו עיקרון וסננו בלי חיפוש'}
+          {!loading && !canReorder && ' · לשינוי הסדר — בחרו עיקרון אחד, כל המקורות, בלי חיפוש'}
           {!loading && canReorder && ' · הסדר כאן הוא הסדר שבתי הספר רואים'}
         </p>
 
