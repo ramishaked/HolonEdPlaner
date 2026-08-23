@@ -466,10 +466,14 @@ const IMPORT_FIELDS: { key: keyof ActivityDraft | 'principles'; label: string; r
 
 const SOURCES = Object.keys(SOURCE_META) as TaskSource[];
 
-/** A tick in a principle mark column: anything written there counts, except an explicit "no". */
+/**
+ * A tick in a principle mark column: anything written there counts, except an explicit
+ * "no". FALSE/TRUE are what Excel 365 and Google Sheets checkboxes become in the file,
+ * so an author who swaps the ✓ dropdown for real checkboxes still imports correctly.
+ */
 const isMarked = (cell: string) => {
   const t = cell.trim().toLowerCase();
-  return t !== '' && !['לא', 'no', '0', '-', '—', 'n'].includes(t);
+  return t !== '' && !['לא', 'no', 'false', '0', '-', '—', 'n'].includes(t);
 };
 
 /** The sheet's "מקור" cell → a `task_source` enum value; anything else is "עירוני". */
