@@ -825,16 +825,25 @@ const BulkImport: React.FC<{
                     {f.label}
                     {f.required && <span className="text-rose-500"> *</span>}
                   </span>
-                  <select
-                    value={mapping[f.key] ?? ''}
-                    onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value }))}
-                    className="border border-slate-200 text-xs rounded-lg p-1.5 bg-white flex-1 min-w-0"
-                  >
-                    <option value="">— לא לייבא —</option>
-                    {sheet.headers.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
+                  {f.key === 'principles' && principleColumns.length > 0 && !mapping.principles ? (
+                    // The sheet links principles through its tick columns; a free-text
+                    // principle column is not expected, so the dropdown would only confuse.
+                    <span className="flex-1 min-w-0 border border-emerald-200 bg-emerald-50/60 text-emerald-800 text-xs rounded-lg p-1.5 flex items-center gap-1.5">
+                      <i className="fa-solid fa-list-check" aria-hidden="true" />
+                      {principleColumns.length} עמודות סימון (✓)
+                    </span>
+                  ) : (
+                    <select
+                      value={mapping[f.key] ?? ''}
+                      onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value }))}
+                      className="border border-slate-200 text-xs rounded-lg p-1.5 bg-white flex-1 min-w-0"
+                    >
+                      <option value="">— לא לייבא —</option>
+                      {sheet.headers.map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               ))}
             </div>
