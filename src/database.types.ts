@@ -848,7 +848,7 @@ export type Database = {
       activity_priority: "high" | "medium" | "low"
       plan_status: "draft" | "active" | "archived"
       principle_scope: "municipal" | "school"
-      task_source: "עירוני" | "בית ספרי" | "משרד החינוך" | "ארצי" | "עולמי"
+      task_source: "עירוני" | "בית ספרי" | "פסג\"ה חולון" | "משרד החינוך" | "ארצי" | "עולמי" | "כללי"
       user_role: "school" | "city_admin" | "super_admin"
     }
     CompositeTypes: {
@@ -980,7 +980,7 @@ export const Constants = {
       activity_priority: ["high", "medium", "low"],
       plan_status: ["draft", "active", "archived"],
       principle_scope: ["municipal", "school"],
-      task_source: ["עירוני", "בית ספרי", "משרד החינוך", "ארצי", "עולמי"],
+      task_source: ["עירוני", "בית ספרי", "פסג\"ה חולון", "משרד החינוך", "ארצי", "עולמי", "כללי"],
       user_role: ["school", "city_admin", "super_admin"],
     },
   },

@@ -64,7 +64,7 @@ export interface DiagnosticAnswers {
 // --- מתחם התכנון (planning zone): per-principle action-plan builder ---
 // Task "source" — where the initiative comes from. Closed vocabulary; becomes a
 // per-task DB attribute in Phase 2. Drives the chip label + colour.
-export type TaskSource = 'עירוני' | 'בית ספרי' | 'משרד החינוך' | 'ארצי' | 'עולמי';
+export type TaskSource = 'עירוני' | 'בית ספרי' | 'פסג"ה חולון' | 'משרד החינוך' | 'ארצי' | 'עולמי' | 'כללי';
 
 export interface PlanActivity {
   id: string;

@@ -11,9 +11,11 @@ import { TaskSource } from './types';
 export const SOURCE_META: Record<TaskSource, { badge: string; accent: string }> = {
   'עירוני': { badge: 'bg-sky-50 text-sky-700 border-sky-100', accent: '#0284c7' },
   'בית ספרי': { badge: 'bg-amber-50 text-amber-700 border-amber-100', accent: '#f59e0b' },
+  'פסג"ה חולון': { badge: 'bg-purple-50 text-purple-700 border-purple-100', accent: '#7c3aed' },
   'משרד החינוך': { badge: 'bg-emerald-50 text-emerald-700 border-emerald-100', accent: '#059669' },
-  'ארצי': { badge: 'bg-purple-50 text-purple-700 border-purple-100', accent: '#7c3aed' },
+  'ארצי': { badge: 'bg-teal-50 text-teal-700 border-teal-100', accent: '#0d9488' },
   'עולמי': { badge: 'bg-indigo-50 text-indigo-700 border-indigo-100', accent: '#6366f1' },
+  'כללי': { badge: 'bg-slate-100 text-slate-600 border-slate-200', accent: '#64748b' },
 };
 
 export const sourceMeta = (s: TaskSource) => SOURCE_META[s] ?? SOURCE_META['עירוני'];
