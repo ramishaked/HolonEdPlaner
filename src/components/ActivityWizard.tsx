@@ -466,6 +466,12 @@ const IMPORT_FIELDS: { key: keyof ActivityDraft | 'principles'; label: string; r
 
 const SOURCES = Object.keys(SOURCE_META) as TaskSource[];
 
+/** A tick in a principle mark column: anything written there counts, except an explicit "no". */
+const isMarked = (cell: string) => {
+  const t = cell.trim().toLowerCase();
+  return t !== '' && !['לא', 'no', '0', '-', '—', 'n'].includes(t);
+};
+
 /** The sheet's "מקור" cell → a `task_source` enum value; anything else is "עירוני". */
 const sourceOf = (text: string): TaskSource => {
   const t = text.replace(/[״"'׳\s-]/g, '');
@@ -506,10 +512,40 @@ const BulkImport: React.FC<{
   const [result, setResult] = useState<BulkResult | null>(null);
   const [parseError, setParseError] = useState('');
 
+  /**
+   * "One column per principle" sheets — the template's way of letting a non-technical
+   * author tick several principles without typing their exact titles. A header that
+   * names a municipal principle (optionally prefixed "עיקרון:") is a mark column; any
+   * non-negative cell in it links the row to that principle.
+   */
+  const principleColumns = useMemo(() => {
+    if (!sheet) return [] as { header: string; id: number; title: string }[];
+    const out: { header: string; id: number; title: string }[] = [];
+    for (const header of sheet.headers) {
+      const label = header.replace(/^\s*עיקרון\s*[:\-]\s*/, '').trim();
+      if (!label) continue;
+      const hit = principles.find(
+        (p) => normalizeTitle(p.title) === normalizeTitle(label) || similarity(label, p.title) >= 0.85,
+      );
+      if (hit) out.push({ header, id: hit.id, title: hit.title });
+    }
+    return out;
+  }, [sheet, principles]);
+
   const accept = (parsed: ParsedSheet) => {
     if (!parsed.rows.length) { setParseError('לא נמצאו שורות בגיליון.'); return; }
+    // Mark columns carry the principle name in their header, which would otherwise
+    // win the "עיקרון" hint and be mistaken for the free-text principle column.
+    const markHeaders = new Set(
+      parsed.headers.filter((h) => {
+        const label = h.replace(/^\s*עיקרון\s*[:\-]\s*/, '').trim();
+        return !!label && principles.some(
+          (p) => normalizeTitle(p.title) === normalizeTitle(label) || similarity(label, p.title) >= 0.85,
+        );
+      }),
+    );
     setSheet(parsed);
-    setMapping(guessMapping(parsed.headers));
+    setMapping(guessMapping(parsed.headers.filter((h) => !markHeaders.has(h))));
     setParseError('');
   };
 
@@ -606,7 +642,12 @@ const BulkImport: React.FC<{
         audienceNote: get(row, 'audienceNote'),
         contact: get(row, 'contact'),
         source: mapping.source ? sourceOf(get(row, 'source')) : emptyDraft().source,
-        principles: principleMap[key] ?? [],
+        principles: Array.from(new Set([
+          ...(principleMap[key] ?? []),
+          ...principleColumns
+            .filter((c) => isMarked(row[c.header] ?? ''))
+            .map((c) => c.id),
+        ])),
       };
 
       const titleKey = normalizeTitle(draft.title);
@@ -620,7 +661,7 @@ const BulkImport: React.FC<{
     }
 
     return out;
-  }, [sheet, mapping, principleMap]);
+  }, [sheet, mapping, principleMap, principleColumns]);
 
   const foldedRows = sheet ? sheet.rows.length - drafts.length : 0;
 
@@ -664,7 +705,7 @@ const BulkImport: React.FC<{
       viewer,
       orderToId,
       bank,
-      { fields: mappedFields, linkPrinciples: !!mapping.principles },
+      { fields: mappedFields, linkPrinciples: !!mapping.principles || principleColumns.length > 0 },
     );
     setImporting(false);
     setResult(r);
@@ -795,6 +836,19 @@ const BulkImport: React.FC<{
             </div>
           </Labeled>
 
+          {principleColumns.length > 0 && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11px] text-emerald-900">
+              <p className="font-bold flex items-center gap-1.5">
+                <i className="fa-solid fa-list-check" aria-hidden="true" />
+                זוהו {principleColumns.length} עמודות סימון לעקרונות
+              </p>
+              <p className="mt-1 text-emerald-800/90 leading-relaxed">
+                כל סימון (✓, X, כן) בעמודה משייך את השורה לעיקרון שבכותרתה:{' '}
+                {principleColumns.map((c) => c.title).join(' · ')}.
+              </p>
+            </div>
+          )}
+
           {!!sheetPrincipleValues.length && (
             <Labeled
               label="שיוך לעקרונות"
@@ -887,8 +941,20 @@ const BulkImport: React.FC<{
                         שם דו-משמעי — קיימות כבר שתי פעילויות בשם הזה. לא תיובא.
                       </p>
                     )}
+                    {s.draft.principles.length > 0 && (
+                      <p className="text-[10px] text-slate-500">
+                        {principles
+                          .filter((p) => s.draft.principles.includes(p.id))
+                          .map((p) => p.title)
+                          .join(' · ')}
+                      </p>
+                    )}
                     {!s.ready && !s.ambiguous && s.draft.title && (
-                      <p className="text-[10px] text-rose-600">לא שויך עיקרון — בחרו עיקרון ברירת מחדל.</p>
+                      <p className="text-[10px] text-rose-600">
+                        {principleColumns.length
+                          ? 'לא סומן אף עיקרון בשורה זו — סמנו ✓ בעמודת עיקרון בגיליון והעלו שוב.'
+                          : 'לא שויך עיקרון — בחרו עיקרון ברירת מחדל.'}
+                      </p>
                     )}
                     {!!s.hits.length && (
                       <p className="text-[10px] text-amber-700">

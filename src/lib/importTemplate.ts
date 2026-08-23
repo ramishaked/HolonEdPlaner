@@ -22,8 +22,16 @@ const COLUMNS: { header: string; width: number; required?: boolean; help: string
   { header: 'קהל יעד', width: 22, help: 'למי הפעילות מיועדת (טקסט חופשי: מנהלת, צוות חינוכי, תלמידי השכבה, כלל התלמידים וכו\').' },
   { header: 'למי פונים ברשות', width: 22, help: 'הגורם ברשות או בפסג"ה שמלווה את הפעילות.' },
   { header: 'מקור הפעילות', width: 16, help: '' /* filled at build time with the live list */ },
-  { header: 'עיקרון', width: 40, required: true, help: 'חובה. שם העיקרון מהרשימה הנפתחת. לכמה עקרונות: השמות מופרדים בנקודה-פסיק (;) באותו תא.' },
 ];
+
+/**
+ * Principles are not one column but one column PER principle, headed "עיקרון: <title>",
+ * ticked with ✓ from a dropdown. Excel has no multi-select control, and asking the
+ * author to type several exact titles into one cell is a recipe for unmatched rows.
+ * The importer recognises these headers (see `principleColumns` in ActivityWizard).
+ */
+const PRINCIPLE_HEADER_PREFIX = 'עיקרון: ';
+const MARK = '✓';
 
 const EXAMPLE_ROW = [
   'סבב ביקורי עמיתים בין-בית-ספרי במרחבי למידה',
@@ -41,12 +49,20 @@ export function buildImportTemplate(principles: TemplatePrinciple[]): Blob {
   const sources = Object.keys(SOURCE_META) as TaskSource[];
   const titles = principles.map((p) => p.title);
   const sourceCol = COLUMNS.findIndex((c) => c.header === 'מקור הפעילות');
-  const principleCol = COLUMNS.findIndex((c) => c.header === 'עיקרון');
   const colLetter = (i: number) => String.fromCharCode(65 + i);
 
-  const columns = COLUMNS.map((c) =>
-    c.header === 'מקור הפעילות' ? { ...c, help: `אחד מתוך: ${sources.join(' / ')}. ריק = עירוני.` } : c,
-  );
+  const columns = [
+    ...COLUMNS.map((c) =>
+      c.header === 'מקור הפעילות' ? { ...c, help: `אחד מתוך: ${sources.join(' / ')}. ריק = עירוני.` } : c,
+    ),
+    ...titles.map((t) => ({
+      header: `${PRINCIPLE_HEADER_PREFIX}${t}`,
+      width: 18,
+      required: true,
+      help: `סמנו ${MARK} אם הפעילות שייכת לעיקרון "${t}". חובה לסמן עיקרון אחד לפחות; אפשר כמה.`,
+    })),
+  ];
+  const firstPrincipleCol = COLUMNS.length;
 
   // Example row: the source and principle cells are taken from the live lists so the
   // example never names something the dropdown no longer offers.
@@ -55,7 +71,7 @@ export function buildImportTemplate(principles: TemplatePrinciple[]): Blob {
     ...EXAMPLE_ROW.slice(0, 5),
     EXAMPLE_ROW[5],
     exampleSource,
-    titles[titles.length - 1] ?? '',
+    ...titles.map((_, i) => (i === titles.length - 1 ? MARK : '')),
   ].map((v) => ({ v, s: 'example' as const }));
 
   const blankRow: Cell[] = columns.map(() => ({ v: '', s: 'wrap' }));
@@ -63,7 +79,7 @@ export function buildImportTemplate(principles: TemplatePrinciple[]): Blob {
   const activities: SheetSpec = {
     name: 'פעילויות',
     colWidths: columns.map((c) => c.width),
-    rowHeights: { 1: 30, 2: 95 },
+    rowHeights: { 1: 48, 2: 95 },
     freezeHeader: true,
     rows: [
       columns.map((c) => ({ v: c.header, s: c.required ? 'headerRequired' : 'header' }) as Cell),
@@ -71,12 +87,14 @@ export function buildImportTemplate(principles: TemplatePrinciple[]): Blob {
       ...Array.from({ length: DATA_ROWS - 2 }, () => blankRow),
     ],
     validations: [
-      {
-        sqref: `${colLetter(principleCol)}2:${colLetter(principleCol)}${DATA_ROWS}`,
-        formula: `'${LISTS_SHEET}'!$A$2:$A$${titles.length + 1}`,
-        strict: false,
-        prompt: 'בחרו מהרשימה. לכמה עקרונות: הקלידו את השמות מופרדים בנקודה-פסיק (;)',
-      },
+      ...(titles.length
+        ? [{
+            sqref: `${colLetter(firstPrincipleCol)}2:${colLetter(firstPrincipleCol + titles.length - 1)}${DATA_ROWS}`,
+            formula: `"${MARK}"`,
+            strict: false,
+            prompt: `בחרו ${MARK} כדי לשייך את הפעילות לעיקרון הזה (אפשר לסמן כמה עקרונות)`,
+          }]
+        : []),
       {
         sqref: `${colLetter(sourceCol)}2:${colLetter(sourceCol)}${DATA_ROWS}`,
         formula: `'${LISTS_SHEET}'!$B$2:$B$${sources.length + 1}`,
@@ -101,11 +119,10 @@ export function buildImportTemplate(principles: TemplatePrinciple[]): Blob {
       [{ v: 'איך ממלאים:', s: 'bold' }],
       ['1. כל שורה בגיליון \'פעילויות\' היא פעילות אחת. השורה הראשונה (הכותרות) נשארת כמו שהיא.'],
       ['2. השורה השנייה היא דוגמה. אפשר למחוק אותה או לדרוס אותה.'],
-      ['3. שתי עמודות חובה: \'שם הפעולה\' ו\'עיקרון\'. שאר העמודות רצויות אך לא חוסמות.'],
-      ['4. ב\'עיקרון\' וב\'מקור הפעילות\' יש רשימה נפתחת. ב\'מקור\' נא לא להקליד ערכים אחרים.'],
-      ['5. פעילות שמתאימה לכמה עקרונות: כותבים בתא \'עיקרון\' את כל השמות מופרדים בנקודה-פסיק, למשל: ' +
-        `${titles[2] ?? 'עיקרון א'}; ${titles[4] ?? titles[0] ?? 'עיקרון ב'}. ` +
-        'גם שורה נפרדת לכל עיקרון עם אותו שם פעילות תאוחד לפעילות אחת בטעינה.'],
+      ['3. חובה: \'שם הפעולה\' וסימון של עיקרון אחד לפחות. שאר העמודות רצויות אך לא חוסמות.'],
+      ['4. ב\'מקור הפעילות\' יש רשימה נפתחת. נא לא להקליד ערכים אחרים.'],
+      [`5. שיוך לעקרונות: לכל עיקרון יש עמודה משלו ("עיקרון: ..."). מסמנים ${MARK} (מהרשימה הנפתחת, או X / כן) בכל עיקרון שהפעילות שייכת אליו. ` +
+        'חובה לסמן עיקרון אחד לפחות, ואפשר כמה.'],
       ['6. שומרים את הקובץ כ-xlsx רגיל ושולחים. אין צורך להמיר ל-CSV.'],
       [''],
       [{ v: 'העמודות:', s: 'bold' }],
