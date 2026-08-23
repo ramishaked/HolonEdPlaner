@@ -477,10 +477,9 @@ const isMarked = (cell: string) => {
 };
 
 /** The sheet's "מקור" cell → a `task_source` enum value; anything else is "עירוני". */
-const sourceOf = (text: string): TaskSource => {
-  const t = text.replace(/[״"'׳\s-]/g, '');
-  return SOURCES.find((s) => s.replace(/\s/g, '') === t) ?? 'עירוני';
-};
+const normSource = (s: string) => s.replace(/[״"'׳\s\-־]/g, '').toLowerCase();
+const sourceOf = (text: string): TaskSource =>
+  SOURCES.find((s) => normSource(s) === normSource(text)) ?? 'עירוני';
 
 const BulkImport: React.FC<{
   viewer: AdminViewer;

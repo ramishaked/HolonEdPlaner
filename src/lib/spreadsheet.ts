@@ -46,7 +46,10 @@ export function parseDelimited(text: string, delimiter?: string): string[][] {
       continue;
     }
 
-    if (ch === '"') quoted = true;
+    // A quote opens a quoted field only at the very start of a cell (RFC 4180). One in
+    // the middle is literal text — Hebrew abbreviations (פסג"ה, חט"ב) are full of them,
+    // and treating it as an opener would swallow the rest of the sheet into one cell.
+    if (ch === '"' && cell === '') quoted = true;
     else if (ch === d) { row.push(cell); cell = ''; }
     else if (ch === '\n') { row.push(cell); matrix.push(row); row = []; cell = ''; }
     else cell += ch;
