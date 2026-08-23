@@ -9,6 +9,7 @@ import {
   draftFromBankItem,
   emptyDraft,
   findSimilar,
+  normalizeTitle,
   similarity,
   updateActivity,
   type ActivityDraft,
@@ -562,11 +563,16 @@ const BulkImport: React.FC<{
       const next = { ...prev };
       for (const value of sheetPrincipleValues) {
         if (next[value]) continue;
-        const text = value.toLowerCase();
+        // One cell may name several principles ("א; ב"), so each part is matched on
+        // its own — a typo in one part must not hide the others.
+        const parts = value.split(/[;|,\n]+/).map((v) => v.trim()).filter(Boolean);
         const matched = principles
           .filter((p) => {
             const t = p.title.toLowerCase();
-            return text.includes(t) || t.includes(text) || similarity(value, p.title) >= 0.6;
+            return parts.some((part) => {
+              const text = part.toLowerCase();
+              return text.includes(t) || t.includes(text) || similarity(part, p.title) >= 0.6;
+            });
           })
           .map((p) => p.id);
         next[value] = matched;
@@ -575,10 +581,19 @@ const BulkImport: React.FC<{
     });
   }, [sheetPrincipleValues, principles]);
 
+  /**
+   * One draft per activity. Rows that repeat the same title (a sheet that lists an
+   * activity once per principle) are folded into one draft carrying the union of their
+   * principles — the first row supplies the text. Without this, each row would become
+   * a separate bank item and the second would be flagged as a duplicate of the first.
+   */
   const drafts = useMemo(() => {
     if (!sheet) return [];
 
-    return sheet.rows.map((row) => {
+    const byTitle = new Map<string, ActivityDraft>();
+    const out: ActivityDraft[] = [];
+
+    for (const row of sheet.rows) {
       const key = get(row, 'principles') || '—';
       const draft: ActivityDraft = {
         ...emptyDraft(),
@@ -592,9 +607,21 @@ const BulkImport: React.FC<{
         source: mapping.source ? sourceOf(get(row, 'source')) : emptyDraft().source,
         principles: principleMap[key] ?? [],
       };
-      return draft;
-    });
+
+      const titleKey = normalizeTitle(draft.title);
+      const prior = titleKey ? byTitle.get(titleKey) : undefined;
+      if (prior) {
+        prior.principles = Array.from(new Set([...prior.principles, ...draft.principles]));
+        continue;
+      }
+      if (titleKey) byTitle.set(titleKey, draft);
+      out.push(draft);
+    }
+
+    return out;
   }, [sheet, mapping, principleMap]);
+
+  const foldedRows = sheet ? sheet.rows.length - drafts.length : 0;
 
   /** Which draft fields the admin actually mapped — an update writes only those. */
   const mappedFields = useMemo(
@@ -770,12 +797,12 @@ const BulkImport: React.FC<{
           {!!sheetPrincipleValues.length && (
             <Labeled
               label="שיוך לעקרונות"
-              hint="לכל ערך שמופיע בעמודת העיקרון — לאילו עקרונות במערכת הוא מתאים"
+              hint="לכל ערך שמופיע בעמודת העיקרון — לאילו עקרונות במערכת הוא מתאים. תא יכול לציין כמה עקרונות, מופרדים בנקודה-פסיק"
             >
               <div className="space-y-2.5">
                 {sheetPrincipleValues.map((value) => {
-                  const count = drafts.filter(
-                    (d, i) => (get(sheet.rows[i], 'principles') || '—') === value,
+                  const count = sheet.rows.filter(
+                    (row) => (get(row, 'principles') || '—') === value,
                   ).length;
                   const picked = principleMap[value] ?? [];
                   return (
@@ -821,6 +848,9 @@ const BulkImport: React.FC<{
                 {createCount} חדשות
                 {updateCount > 0 && <span className="text-sky-700"> · {updateCount} עדכונים</span>}
                 {dupCount > 0 && <span className="text-amber-700"> · {dupCount} דומות לקיימות</span>}
+                {foldedRows > 0 && (
+                  <span className="text-slate-500"> · {foldedRows} שורות אוחדו (אותו שם, כמה עקרונות)</span>
+                )}
                 {rowState.length > readyCount && (
                   <span className="text-rose-600"> · {rowState.length - readyCount} לא ייובאו</span>
                 )}
