@@ -15,7 +15,8 @@ import {
   type BulkResult,
   type DuplicateHit,
 } from '../lib/activityBankAdmin';
-import { guessMapping, parseSheet, type ParsedSheet } from '../lib/spreadsheet';
+import { guessMapping, parseSheet, sheetFromMatrix, type ParsedSheet } from '../lib/spreadsheet';
+import { isXlsxName, readXlsxMatrix } from '../lib/xlsx';
 import { Chip, Labeled, inputClass } from './admin/fields';
 import type { AdminViewer } from '../lib/adminAuth';
 import { SOURCE_META } from '../planBank';
@@ -457,8 +458,17 @@ const IMPORT_FIELDS: { key: keyof ActivityDraft | 'principles'; label: string; r
   { key: 'metrics', label: 'מדדי הצלחה ויעדים' },
   { key: 'audienceNote', label: 'קהל יעד' },
   { key: 'contact', label: 'למי פונים ברשות' },
+  { key: 'source', label: 'מקור הפעילות' },
   { key: 'principles', label: 'עיקרון' },
 ];
+
+const SOURCES = Object.keys(SOURCE_META) as TaskSource[];
+
+/** The sheet's "מקור" cell → a `task_source` enum value; anything else is "עירוני". */
+const sourceOf = (text: string): TaskSource => {
+  const t = text.replace(/[״"'׳\s-]/g, '');
+  return SOURCES.find((s) => s.replace(/\s/g, '') === t) ?? 'עירוני';
+};
 
 const BulkImport: React.FC<{
   viewer: AdminViewer;
@@ -494,13 +504,16 @@ const BulkImport: React.FC<{
   const [result, setResult] = useState<BulkResult | null>(null);
   const [parseError, setParseError] = useState('');
 
+  const accept = (parsed: ParsedSheet) => {
+    if (!parsed.rows.length) { setParseError('לא נמצאו שורות בגיליון.'); return; }
+    setSheet(parsed);
+    setMapping(guessMapping(parsed.headers));
+    setParseError('');
+  };
+
   const ingest = (text: string) => {
     try {
-      const parsed = parseSheet(text);
-      if (!parsed.rows.length) { setParseError('לא נמצאו שורות בגיליון.'); return; }
-      setSheet(parsed);
-      setMapping(guessMapping(parsed.headers));
-      setParseError('');
+      accept(parseSheet(text));
     } catch {
       setParseError('לא הצלחנו לקרוא את הקובץ. ודאו שהוא CSV או טקסט מופרד בטאבים.');
     }
@@ -508,8 +521,16 @@ const BulkImport: React.FC<{
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    if (/\.(xlsx|xls)$/i.test(file.name)) {
-      setParseError('קובץ אקסל אינו נתמך ישירות. שמרו אותו כ-CSV (קובץ ← שמירה בשם ← CSV) והעלו שוב.');
+    if (/\.xls$/i.test(file.name)) {
+      setParseError('קובץ .xls ישן אינו נתמך. שמרו אותו כ-.xlsx או כ-CSV והעלו שוב.');
+      return;
+    }
+    if (isXlsxName(file.name)) {
+      try {
+        accept(sheetFromMatrix(await readXlsxMatrix(file)));
+      } catch {
+        setParseError('לא הצלחנו לקרוא את קובץ האקסל. נסו לשמור אותו מחדש כ-.xlsx או כ-CSV.');
+      }
       return;
     }
     ingest(await file.text());
@@ -568,6 +589,7 @@ const BulkImport: React.FC<{
         metrics: get(row, 'metrics'),
         audienceNote: get(row, 'audienceNote'),
         contact: get(row, 'contact'),
+        source: mapping.source ? sourceOf(get(row, 'source')) : emptyDraft().source,
         principles: principleMap[key] ?? [],
       };
       return draft;
@@ -662,17 +684,17 @@ const BulkImport: React.FC<{
       {!sheet ? (
         <>
           <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center">
-            <i className="fa-solid fa-file-csv text-2xl text-slate-300" aria-hidden="true" />
-            <p className="text-sm font-bold text-slate-700 mt-2">העלו קובץ CSV</p>
+            <i className="fa-solid fa-file-excel text-2xl text-slate-300" aria-hidden="true" />
+            <p className="text-sm font-bold text-slate-700 mt-2">העלו קובץ אקסל (.xlsx) או CSV</p>
             <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-              מתוך Google Sheets: קובץ ← הורדה ← CSV.
+              הגיליון הראשון בקובץ נקרא; השורה הראשונה היא שורת הכותרות.
               <br />
-              מתוך אקסל: קובץ ← שמירה בשם ← CSV.
+              מתוך Google Sheets: קובץ ← הורדה ← Microsoft Excel או CSV.
             </p>
             <label className="inline-block mt-3">
               <input
                 type="file"
-                accept=".csv,.tsv,.txt,text/csv,text/plain"
+                accept=".xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain"
                 className="hidden"
                 onChange={(e) => onFile(e.target.files?.[0])}
               />
@@ -680,6 +702,17 @@ const BulkImport: React.FC<{
                 בחירת קובץ
               </span>
             </label>
+            <p className="text-[11px] text-slate-500 mt-3">
+              מתחילים מאפס?{' '}
+              <a
+                href="/templates/activity-import-template.xlsx"
+                download
+                className="font-bold text-primary-700 hover:underline"
+              >
+                הורדת תבנית אקסל למילוי
+              </a>
+              {' '}(כוללת שורה לדוגמה, רשימות נפתחות והנחיות).
+            </p>
           </div>
 
           <Labeled label="או הדביקו את הטבלה" hint="סמנו את התאים בגיליון והדביקו כאן">

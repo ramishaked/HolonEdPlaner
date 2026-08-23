@@ -2,9 +2,9 @@
  * Minimal delimited-text parser for the bulk activity import.
  *
  * Deliberately dependency-free: the import accepts CSV (what Google Sheets and Excel
- * both export) and TSV (what copying a block of cells puts on the clipboard), which
- * covers "import a spreadsheet" without pulling a binary .xlsx reader into the bundle.
- * Handles quoted fields, escaped quotes and newlines inside cells.
+ * both export) and TSV (what copying a block of cells puts on the clipboard).
+ * Handles quoted fields, escaped quotes and newlines inside cells. Native .xlsx goes
+ * through `./xlsx.ts`, which hands the same cell matrix to `sheetFromMatrix`.
  */
 
 export type Row = Record<string, string>;
@@ -58,9 +58,8 @@ export function parseDelimited(text: string, delimiter?: string): string[][] {
   return matrix.filter((r) => r.some((c) => c.trim() !== ''));
 }
 
-/** Parse into headers + keyed rows. The first non-empty line is the header row. */
-export function parseSheet(text: string): ParsedSheet {
-  const matrix = parseDelimited(text);
+/** Headers + keyed rows from a cell matrix. The first non-empty row is the header row. */
+export function sheetFromMatrix(matrix: string[][]): ParsedSheet {
   if (!matrix.length) return { headers: [], rows: [] };
 
   const headers = matrix[0].map((h) => h.trim());
@@ -72,6 +71,9 @@ export function parseSheet(text: string): ParsedSheet {
 
   return { headers, rows };
 }
+
+/** Parse delimited text (CSV/TSV) into headers + keyed rows. */
+export const parseSheet = (text: string): ParsedSheet => sheetFromMatrix(parseDelimited(text));
 
 /**
  * Guess which column feeds which field, so the mapping step starts pre-filled.
@@ -86,6 +88,7 @@ export const FIELD_HINTS: Record<string, string[]> = {
   metrics: ['מדדי הצלחה ויעדים', 'מדדי הצלחה', 'מדדים', 'יעדים', 'metrics', 'kpi'],
   audienceNote: ['קהל יעד', 'קהל', 'audience'],
   contact: ['למי פונים ברשות', 'למי פונים', 'איש קשר', 'גורם מקצועי', 'contact'],
+  source: ['מקור הפעילות', 'מקור', 'source'],
   principles: ['עיקרון', 'עקרונות', 'principle', 'principles'],
 };
 
