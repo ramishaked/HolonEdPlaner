@@ -576,8 +576,8 @@ export default function App() {
       <header className="fixed top-0 left-0 right-0 h-16 bg-white text-slate-900 border-b border-slate-200 shadow-sm z-40 px-4 md:px-8 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
           <img
-            src="/logo.png"
-            alt="מינהל החינוך - עיריית חולון, עיר הילדים"
+            src="/planner-logo.png"
+            alt="הפלנר - מתכננים, משפרים, מתקדמים"
             className="h-11 w-auto object-contain shrink-0"
           />
           <div>

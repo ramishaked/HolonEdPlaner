@@ -411,7 +411,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
           {/* 1. Cover */}
           {on('cover') && (
             <div className="text-center space-y-3 pb-6 border-b-2 border-slate-900">
-              <img src="/logo.png" alt="עיריית חולון" className="h-14 w-auto object-contain mx-auto mb-2" />
+              <img src="/planner-logo.png" alt="הפלנר" className="h-14 w-auto object-contain mx-auto mb-2" />
               <h1 className="text-3xl font-bold text-slate-900">תוכנית עבודה שנתית בית-ספרית</h1>
               <p className="text-sm font-bold text-primary-700">ברוח עקרונות תמונת העתיד והמציאות המשתנה</p>
               <div className="flex flex-wrap justify-center gap-x-8 gap-y-1 text-xs font-mono text-slate-600 pt-2">
