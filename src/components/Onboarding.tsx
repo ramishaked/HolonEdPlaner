@@ -81,13 +81,15 @@ export const Onboarding: React.FC = () => {
             mode === 'admin' ? 'bg-slate-900' : 'bg-primary-50'
           }`}
         >
-          <h1
-            className={`text-2xl md:text-3xl font-bold leading-tight ${
-              mode === 'admin' ? 'text-white' : 'text-slate-900'
-            }`}
-          >
-            הפלנר
-          </h1>
+          {mode === 'admin' ? (
+            <h1 className="text-2xl md:text-3xl font-bold leading-tight text-white">הפלנר</h1>
+          ) : (
+            <img
+              src="/planner-logo.png"
+              alt="הפלנר - מתכננים, משפרים, מתקדמים"
+              className="h-16 md:h-20 w-auto object-contain"
+            />
+          )}
           <p className={`text-sm font-medium ${mode === 'admin' ? 'text-white/70' : 'text-slate-500'}`}>
             {mode === 'admin' ? 'כניסת מנהל/ת המערכת העירוני' : 'כניסה למערכת התכנון הבית-ספרית'}
           </p>
