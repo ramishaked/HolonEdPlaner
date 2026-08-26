@@ -669,6 +669,7 @@ export default function App() {
               plans={principlePlans}
               config={exportConfig}
               onUpdateConfig={setExportConfig}
+              schoolLogoUrl={schoolProfile.logoDataUrl}
             />
             <div className="print:hidden">
               <StepFooter
