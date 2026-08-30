@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { version } from '../../package.json';
 import { usePrinciples } from '../lib/PrinciplesContext';
 import { useAudiences } from '../lib/audiences';
 import { useActivityBank } from '../lib/activityBank';
@@ -81,7 +82,8 @@ export const AdminArea: React.FC<Props> = ({ viewer, onExit }) => {
             <h1 className="text-lg md:text-xl font-bold text-white leading-tight">מסך מנהל המערכת</h1>
             <p className="text-xs text-white/60 mt-0.5">
               {/* No name until it loads — better a shorter line than a flash of the wrong city. */}
-              ניהול עירוני{municipality && ` — ${municipality}`} · שינויים כאן משפיעים על כל בתי הספר
+              ניהול עירוני{municipality && ` — ${municipality}`} · שינויים כאן משפיעים על כל בתי הספר{' '}
+              <span dir="ltr" className="font-mono text-white/40">· v{version}</span>
             </p>
           </div>
         </div>

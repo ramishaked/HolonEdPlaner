@@ -209,6 +209,11 @@ export async function saveFocus(
       position: r.position,
     }));
 
+  // Fail closed: anchors were chosen but none mapped (orderToId emptied by a
+  // transient principles-load failure). The RPC replaces the whole focus set,
+  // so calling it with [] here would erase the school's anchors.
+  if ((strengths.length || breakthroughs.length) && !focus.length) return;
+
   await supabase.rpc('set_plan_focus', { p_plan_id: planId, p_focus: focus });
 }
 
@@ -301,11 +306,16 @@ export async function savePrinciplePlans(
     });
   }
 
-  if (planRows.length) {
-    await supabase
-      .from('plan_principle_plans')
-      .upsert(planRows as never, { onConflict: 'plan_id,principle_id' });
-  }
+  // Fail closed: if nothing mapped to a principle uuid, skip the save entirely.
+  // A transient principles-load failure (e.g. a 401 racing a token refresh) empties
+  // orderToId while the in-memory plans still hold activities; running the exclusion
+  // delete below with an empty keep-list would then wipe the whole plan's activities
+  // (this is exactly what happened on 30.08.2026).
+  if (!planRows.length) return;
+
+  await supabase
+    .from('plan_principle_plans')
+    .upsert(planRows as never, { onConflict: 'plan_id,principle_id' });
   if (activityRows.length) {
     await supabase.from('plan_activities').upsert(activityRows as never);
   }

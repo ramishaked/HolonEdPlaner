@@ -50,7 +50,16 @@ export const PrinciplesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (data && data.principles.length) {
         setValue({ ...data, loading: false, failed: false });
       } else {
-        setValue({ ...EMPTY, loading: false, failed: true });
+        // A mid-session failure (e.g. a 401 racing a token refresh, which reloads via
+        // onAuthStateChange) must not dump the set the app is already using: emptying
+        // orderToId while the debounced saves are armed turns them into destructive
+        // no-mapping writes. Keep the last good set; "failed" is only a first load
+        // that produced nothing.
+        setValue((v) =>
+          v.principles.length
+            ? { ...v, loading: false, failed: false }
+            : { ...EMPTY, loading: false, failed: true },
+        );
       }
     };
 

@@ -20,6 +20,8 @@ interface ExportViewProps {
   /** Builder config, owned by App (DB-backed). null until loaded. */
   config: ExportConfig | null;
   onUpdateConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
+  /** Signed URL of the school logo from the business card; empty when none was uploaded. */
+  schoolLogoUrl: string;
 }
 
 export interface ExportConfig {
@@ -88,6 +90,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
   plans,
   config: dbConfig,
   onUpdateConfig,
+  schoolLogoUrl,
 }) => {
   const { principles, shortTitles, displayNumbers } = usePrinciples();
   // `all`, not the active subset: a retired audience must keep its label on activities
@@ -411,7 +414,15 @@ export const ExportView: React.FC<ExportViewProps> = ({
           {/* 1. Cover */}
           {on('cover') && (
             <div className="text-center space-y-3 pb-6 border-b-2 border-slate-900">
-              <img src="/planner-logo.png" alt="הפלנר" className="h-14 w-auto object-contain mx-auto mb-2" />
+              {/* RTL row: first child sits on the right (school logo), last on the left (Planner). */}
+              <div className="flex items-start justify-between gap-4 mb-2">
+                {schoolLogoUrl ? (
+                  <img src={schoolLogoUrl} alt={`לוגו ${actionPlan.schoolName || 'בית הספר'}`} className="h-14 w-auto max-w-[180px] object-contain" />
+                ) : (
+                  <span />
+                )}
+                <img src="/planner-logo.png" alt="הפלנר" className="h-14 w-auto object-contain" />
+              </div>
               <h1 className="text-3xl font-bold text-slate-900">תוכנית עבודה שנתית בית-ספרית</h1>
               <p className="text-sm font-bold text-primary-700">ברוח עקרונות תמונת העתיד והמציאות המשתנה</p>
               <div className="flex flex-wrap justify-center gap-x-8 gap-y-1 text-xs font-mono text-slate-600 pt-2">
