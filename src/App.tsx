@@ -583,6 +583,7 @@ export default function App() {
           <div>
             <h1 className="font-bold text-xs md:text-sm text-slate-900 leading-tight">
               הפלנר <span className="text-slate-400 font-medium">(Holon School Educational Planner)</span>
+              <span dir="ltr" className="mr-1.5 font-mono font-medium text-[10px] text-slate-400 bg-slate-100 rounded px-1 py-px align-middle">v{version}</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium hidden md:block">העוזר החכם שלך לבניית תוכנית העצמה בית ספרית ברוח עקרונות תמונת העתיד והמציאות המשתנה</p>
           </div>
