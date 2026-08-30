@@ -194,7 +194,7 @@ async function create(
   // the signup trigger reads (see the 20260807140000 migration). Putting them in
   // `user_metadata` would be reading back whatever a client could have sent. The
   // display name stays in user_metadata: it is a label, not a permission.
-  const { error: authError } = await admin.auth.admin.createUser({
+  const { data: created, error: authError } = await admin.auth.admin.createUser({
     email: schoolEmail(school.id),
     password: `bootstrap-${school.id}`,
     email_confirm: true,
@@ -202,11 +202,38 @@ async function create(
     user_metadata: { display_name: name },
   });
 
-  if (authError) {
-    // Don't leave a school nobody can sign in to — it would show in the picker and
-    // reject every password.
+  // Don't leave a school nobody can sign in to — it would show in the picker and
+  // reject every password.
+  const abandon = async (message: string): Promise<AdminResult> => {
+    if (created?.user?.id) await admin.auth.admin.deleteUser(created.user.id);
+    await admin.from('schools').delete().eq('id', school.id);
+    return err(500, message);
+  };
+
+  if (authError || !created?.user) {
     await admin.from('schools').delete().eq('id', school.id);
     return err(500, 'יצירת הכניסה לבית הספר נכשלה, ובית הספר לא נוצר.');
+  }
+
+  // The profile is normally written by the signup trigger. It is checked here because
+  // GoTrue writes custom app_metadata in an UPDATE that follows the INSERT, so the
+  // trigger used to see a row without a role and skip it — leaving a school that
+  // rejects every password (see the 20260830100000 migration). The migration fixes the
+  // trigger; this makes the failure impossible to ship silently.
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', created.user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    const { error: profileError } = await admin.from('profiles').insert({
+      id: created.user.id,
+      role: 'school',
+      school_id: school.id,
+      display_name: name,
+    });
+    if (profileError) return abandon('יצירת ההרשאות לבית הספר נכשלה, ובית הספר לא נוצר.');
   }
 
   const { data: ok, error: pwError } = await admin.rpc('admin_set_school_password', {
@@ -214,14 +241,11 @@ async function create(
     p_password: password,
   });
 
+  // A school whose password never took hold is a school that rejects every password.
+  // Fail the whole creation and clean up, rather than report a partial success the
+  // admin would read as "done, just reset the code".
   if (pwError || ok === false) {
-    return {
-      status: 207,
-      json: {
-        school: { id: school.id, name: school.name },
-        warning: 'בית הספר נוצר, אך קביעת הסיסמה נכשלה. אפסו אותה מהרשימה.',
-      },
-    };
+    return abandon('קביעת הסיסמה נכשלה, ובית הספר לא נוצר. נסו שוב.');
   }
 
   return { status: 200, json: { school: { id: school.id, name: school.name } } };

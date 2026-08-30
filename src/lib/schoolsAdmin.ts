@@ -55,10 +55,9 @@ export async function fetchSchools(): Promise<{ schools: AdminSchool[]; error?: 
 
 export async function createSchool(name: string, password: string): Promise<SaveResult> {
   const r = await call({ action: 'create', name, password });
-  if (!r.ok) return { ok: false, error: r.error };
-  // 207: the school exists but its password did not stick — say so rather than
-  // report a clean success the admin would rely on.
-  return r.data?.warning ? { ok: false, error: r.data.warning } : { ok: true };
+  // The server either creates a school that can sign in, or creates nothing and says
+  // so — there is no half-created state to report here (see api/_lib/admin.ts).
+  return r.ok ? { ok: true } : { ok: false, error: r.error };
 }
 
 export async function renameSchool(schoolId: string, name: string): Promise<SaveResult> {
