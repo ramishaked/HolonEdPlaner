@@ -106,7 +106,7 @@ export async function saveAssessment(
   principleUuid: string,
   r: DiagnosticResponse,
 ): Promise<void> {
-  await supabase.from('plan_assessments').upsert(
+  const { error } = await supabase.from('plan_assessments').upsert(
     {
       plan_id: planId,
       principle_id: principleUuid,
@@ -118,6 +118,9 @@ export async function saveAssessment(
     },
     { onConflict: 'plan_id,principle_id' },
   );
+  // Supabase resolves (not rejects) on a network/DB error, so a fire-and-forget save
+  // would drop it silently. Throw so App's runSave can surface it and retry.
+  if (error) throw error;
 }
 
 // ---- action plan (version-level fields + focus anchors) ---------------------
@@ -171,7 +174,7 @@ export async function loadActionPlan(
 
 /** Persist the version-level action-plan fields (text) — called debounced. */
 export async function saveActionPlanFields(planId: string, a: ActionPlan): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from('plans')
     .update({
       school_year: a.schoolYear ?? '',
@@ -181,6 +184,7 @@ export async function saveActionPlanFields(planId: string, a: ActionPlan): Promi
       breakthrough_reason2: a.breakthroughReason2 ?? '',
     })
     .eq('id', planId);
+  if (error) throw error;
 }
 
 /**
@@ -214,7 +218,8 @@ export async function saveFocus(
   // so calling it with [] here would erase the school's anchors.
   if ((strengths.length || breakthroughs.length) && !focus.length) return;
 
-  await supabase.rpc('set_plan_focus', { p_plan_id: planId, p_focus: focus });
+  const { error } = await supabase.rpc('set_plan_focus', { p_plan_id: planId, p_focus: focus });
+  if (error) throw error;
 }
 
 // ---- per-principle plans + activities (מתחם התכנון) -------------------------
@@ -313,17 +318,20 @@ export async function savePrinciplePlans(
   // (this is exactly what happened on 30.08.2026).
   if (!planRows.length) return;
 
-  await supabase
+  const { error: planErr } = await supabase
     .from('plan_principle_plans')
     .upsert(planRows as never, { onConflict: 'plan_id,principle_id' });
+  if (planErr) throw planErr;
   if (activityRows.length) {
-    await supabase.from('plan_activities').upsert(activityRows as never);
+    const { error: actErr } = await supabase.from('plan_activities').upsert(activityRows as never);
+    if (actErr) throw actErr;
   }
 
   // Drop activities the user removed (must run after the upsert).
   let del = supabase.from('plan_activities').delete().eq('plan_id', planId);
   if (keepIds.length) del = del.not('id', 'in', `(${keepIds.join(',')})`);
-  await del;
+  const { error: delErr } = await del;
+  if (delErr) throw delErr;
 }
 
 // ---- export builder config (per version) -----------------------------------
@@ -350,7 +358,7 @@ export async function loadExportConfig(planId: string): Promise<ExportConfig | n
 }
 
 export async function saveExportConfig(planId: string, cfg: ExportConfig): Promise<void> {
-  await supabase.from('plan_export_configs').upsert(
+  const { error } = await supabase.from('plan_export_configs').upsert(
     {
       plan_id: planId,
       sections: cfg.sections as never,
@@ -359,6 +367,7 @@ export async function saveExportConfig(planId: string, cfg: ExportConfig): Promi
     },
     { onConflict: 'plan_id' },
   );
+  if (error) throw error;
 }
 
 // ---- school profile ("כרטיס ביקור") — school-level, shared across versions ---
@@ -394,7 +403,7 @@ export async function loadSchoolProfile(schoolId: string): Promise<(LoadedProfil
 
 export async function saveSchoolProfile(schoolId: string, p: LoadedProfile): Promise<void> {
   const digits = (p.studentCount ?? '').replace(/[^\d]/g, '');
-  await supabase
+  const { error } = await supabase
     .from('schools')
     .update({
       principal_name: p.principalName ?? '',
@@ -405,6 +414,7 @@ export async function saveSchoolProfile(schoolId: string, p: LoadedProfile): Pro
       uniqueness: p.uniqueness ?? '',
     })
     .eq('id', schoolId);
+  if (error) throw error;
 }
 
 // ---- Storage: school logo + attachments ------------------------------------
@@ -417,18 +427,33 @@ export async function signedUrl(path: string, seconds = 3600): Promise<string> {
   return data?.signedUrl ?? '';
 }
 
-export async function uploadLogo(schoolId: string, file: File): Promise<string | null> {
-  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-  const path = `${schoolId}/logo/logo.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
-  if (error) return null;
-  await supabase.from('schools').update({ logo_path: path }).eq('id', schoolId);
-  return path;
+export interface UploadResult {
+  ok: boolean;
+  path?: string;
+  error?: string;
 }
 
-export async function removeLogo(schoolId: string, path: string | null): Promise<void> {
+/**
+ * Storage object keys must be ASCII — a Hebrew filename yields "Invalid key" and the
+ * upload fails. So keys are built from the school id, a uuid and an ASCII-safe
+ * extension only; the human-readable name is kept in `school_files.name` (attachments).
+ */
+const safeExt = (name: string): string =>
+  (name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+
+export async function uploadLogo(schoolId: string, file: File): Promise<UploadResult> {
+  const ext = safeExt(file.name) || 'png';
+  const path = `${schoolId}/logo/logo.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+  if (error) return { ok: false, error: error.message };
+  await supabase.from('schools').update({ logo_path: path }).eq('id', schoolId);
+  return { ok: true, path };
+}
+
+export async function removeLogo(schoolId: string, path: string | null): Promise<UploadResult> {
   if (path) await supabase.storage.from(BUCKET).remove([path]);
   await supabase.from('schools').update({ logo_path: null }).eq('id', schoolId);
+  return { ok: true };
 }
 
 export async function loadSchoolFiles(schoolId: string): Promise<SchoolFileMeta[]> {
@@ -447,14 +472,25 @@ export async function loadSchoolFiles(schoolId: string): Promise<SchoolFileMeta[
   }));
 }
 
-export async function uploadSchoolFiles(schoolId: string, files: File[]): Promise<SchoolFileMeta[]> {
-  const added: SchoolFileMeta[] = [];
-  for (const file of files) {
-    const path = `${schoolId}/files/${crypto.randomUUID()}-${file.name}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file);
-    if (error) continue;
+export interface UploadFilesResult {
+  added: SchoolFileMeta[];
+  failed: { name: string; reason: string }[];
+}
 
-    const { data } = await supabase
+export async function uploadSchoolFiles(schoolId: string, files: File[]): Promise<UploadFilesResult> {
+  const added: SchoolFileMeta[] = [];
+  const failed: { name: string; reason: string }[] = [];
+  for (const file of files) {
+    // ASCII-only key (the original Hebrew name is preserved in school_files.name below).
+    const ext = safeExt(file.name);
+    const path = `${schoolId}/files/${crypto.randomUUID()}${ext ? '.' + ext : ''}`;
+    const { error } = await supabase.storage.from(BUCKET).upload(path, file);
+    if (error) {
+      failed.push({ name: file.name, reason: error.message });
+      continue;
+    }
+
+    const { data, error: insertError } = await supabase
       .from('school_files')
       .insert({
         school_id: schoolId,
@@ -466,9 +502,16 @@ export async function uploadSchoolFiles(schoolId: string, files: File[]): Promis
       .select('id')
       .single();
 
+    if (insertError) {
+      // Don't leave an orphaned Storage object the app can't see or delete.
+      await supabase.storage.from(BUCKET).remove([path]);
+      failed.push({ name: file.name, reason: insertError.message });
+      continue;
+    }
+
     added.push({ id: data?.id, name: file.name, size: file.size, type: file.type, path });
   }
-  return added;
+  return { added, failed };
 }
 
 export async function deleteSchoolFile(meta: SchoolFileMeta): Promise<void> {
