@@ -49,7 +49,9 @@ const SECTIONS: { key: SectionKey; label: string; icon: string }[] = [
   { key: 'leadingPrinciples', label: 'עקרונות מובילים', icon: 'fa-solid fa-compass' },
   { key: 'maturityMap', label: 'מפת בשלות (רדאר + טבלה)', icon: 'fa-solid fa-chart-pie' },
   { key: 'detailedPlan', label: 'תוכנית פעולה מפורטת', icon: 'fa-solid fa-list-check' },
-  { key: 'gantt', label: 'גאנט שנתי', icon: 'fa-solid fa-bars-staggered' },
+  // 'gantt' hidden for the MVP — it rendered fixed demo data, not the plan's real
+  // activities. The key stays in the type + DEFAULT_SECTIONS so saved configs don't
+  // break and re-adding is trivial once it's derived from the actual plan.
   { key: 'organizationalSacrifice', label: 'הוויתור הארגוני', icon: 'fa-solid fa-scale-balanced' },
   { key: 'signatures', label: 'חתימות', icon: 'fa-solid fa-signature' },
 ];
@@ -70,17 +72,6 @@ const CONFIG_KEY = 'school_export_config_v1';
 
 const PRIORITY_LABEL: Record<string, string> = { high: 'גבוהה', medium: 'בינונית', low: 'רגילה' };
 // Audience labels are DB data (the `audiences` picklist), resolved via useAudiences().
-
-// --- demo Gantt data (fixed sample, per product decision) -------------------
-const GANTT_MONTHS = ['ספט', 'אוק', 'נוב', 'דצמ', 'ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יונ', 'יול'];
-const GANTT_TASKS: { label: string; start: number; end: number; color: string }[] = [
-  { label: 'סדנת היערכות והכשרת צוות', start: 0, end: 1, color: '#10b981' },
-  { label: 'השקת יעד פריצת דרך ראשון', start: 1, end: 4, color: '#f43f5e' },
-  { label: 'ועדות פדגוגיות ומעקב בשלות', start: 2, end: 8, color: '#6366f1' },
-  { label: 'האקתון עירוני / בית רותר', start: 4, end: 5, color: '#f59e0b' },
-  { label: 'השקת יעד פריצת דרך שני', start: 5, end: 8, color: '#0ea5e9' },
-  { label: 'תערוכת תוצרים ורפלקציה מסכמת', start: 9, end: 10, color: '#8b5cf6' },
-];
 
 export const ExportView: React.FC<ExportViewProps> = ({
   scores,
@@ -556,47 +547,7 @@ export const ExportView: React.FC<ExportViewProps> = ({
             </section>
           )}
 
-          {/* 7. Gantt (demo) */}
-          {on('gantt') && (
-            <section className="space-y-3 break-inside-avoid">
-              <SectionHeading>גאנט שנתי — מפת דרכים</SectionHeading>
-              <p className="text-[11px] text-slate-400 italic">תרשים הדגמה עם נתונים לדוגמה. בהמשך ייגזר אוטומטית מהפעילויות בתוכנית.</p>
-              <div className="border border-slate-200 rounded-xl p-3 overflow-x-auto">
-                {/* month header */}
-                <div className="grid items-center gap-px min-w-[640px]" style={{ gridTemplateColumns: `170px repeat(${GANTT_MONTHS.length}, 1fr)` }}>
-                  <div></div>
-                  {GANTT_MONTHS.map((m) => (
-                    <div key={m} className="text-[10px] font-bold text-slate-500 text-center py-1">{m}</div>
-                  ))}
-                  {/* rows */}
-                  {GANTT_TASKS.map((t) => (
-                    <React.Fragment key={t.label}>
-                      <div className="text-[11px] font-bold text-slate-700 py-1.5 pl-2 truncate" title={t.label}>{t.label}</div>
-                      {GANTT_MONTHS.map((_, i) => {
-                        const active = i >= t.start && i <= t.end;
-                        const first = i === t.start;
-                        const last = i === t.end;
-                        return (
-                          <div key={i} className="px-px py-1.5">
-                            <div
-                              className="h-3.5"
-                              style={{
-                                backgroundColor: active ? t.color : 'transparent',
-                                borderTopRightRadius: first ? 9999 : 0,
-                                borderBottomRightRadius: first ? 9999 : 0,
-                                borderTopLeftRadius: last ? 9999 : 0,
-                                borderBottomLeftRadius: last ? 9999 : 0,
-                              }}
-                            ></div>
-                          </div>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
+          {/* 7. Gantt — hidden for the MVP (rendered fixed demo data, not the real plan). */}
 
           {/* 8. Workshop protocol */}
           {/* 9. Organizational sacrifice */}
