@@ -61,7 +61,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **ESM gotcha:** `package.json` הוא `"type":"module"` → imports יחסיים ב-`api/`/`server.ts` חייבים סיומת `.js` (למשל `./api/_lib/ai.js`), אחרת Vercel זורק `ERR_MODULE_NOT_FOUND`.
 
 ### Deploy (Vercel)
-**מודל הענפים (עודכן 2026-08-31 — גרסה 1.0 באוויר):** `main` הוא ה-Production Branch של Vercel ומריץ את **Phase 2 החי** (`holon-edplaner.vercel.app`, v0.1.22 = גרסה 1.0, commit `cb7d607`, מסומן בתג `v1.0.0`). ההקפאה של Phase 1 הסתיימה; הגרסה שקדמה לה מסומנת בתג **`prod-phase1-2026-08-04`** (=`67b2ae3`).
+**מודל הענפים (עודכן 2026-08-31 — גרסה 1.0 באוויר):** `main` הוא ה-Production Branch של Vercel ומריץ את **Phase 2 החי** (`holon-edplaner.vercel.app`, v1.0.0, commit `3dc08fb`, מסומן בתג `v1.0.0`). ההקפאה של Phase 1 הסתיימה; הגרסה שקדמה לה מסומנת בתג **`prod-phase1-2026-08-04`** (=`67b2ae3`).
 
 הפיתוח ממשיך על **`phase-2`**; דחיפה אליו בונה **preview בלבד** (`target: null`, מוגן ב-Vercel SSO). `main` מתעדכן רק בריליז מכוון ומאושר.
 
@@ -85,7 +85,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Phase 1 — הדמו על Vercel · **הוחלף**
 localStorage + ללא auth. רץ בפרוד עד 7.8.2026; מסומן בתג `prod-phase1-2026-08-04`.
 
-### Phase 2 — DB וריבוי בתי ספר · **השלב הנוכחי — גרסה 1.0 באוויר בפרוד מ-31.8.2026 (v0.1.22)**
+### Phase 2 — DB וריבוי בתי ספר · **השלב הנוכחי — גרסה 1.0.0 באוויר בפרוד מ-31.8.2026**
 - Supabase מחובר בפיתוח: auth פר בית-ספר (דרופדאון + סיסמה, מאחורי הקלעים session סינתטי) + RLS מלא; פונקציות ההרשאה בסכימה פרטית `app`.
 - הגמילה מ-localStorage **הושלמה** — כל מידע דינמי ב-DB, כולל העקרונות ובנק הפעילויות.
 - **למנהל המערכת יש כניסה משלו.** ב-`Onboarding` יש מצב `admin` (קישור בתחתית) שמתחבר ל-`ADMIN_EMAIL` (`admin@holon.test`, בפיתוח סיסמה `9999`) על **אותו לקוח `supabase`** הראשי. `App` מנתב לפי `profiles.role`: `city_admin`/`super_admin` מקבלים את `AdminArea` **במקום כל המסע**, ו-bootstrap התוכנית מדולג להם (אין להם `school_id`). אין יותר לקוח Supabase שני.
