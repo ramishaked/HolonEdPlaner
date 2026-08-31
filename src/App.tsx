@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { version } from '../package.json';
 import { usePrinciples } from './lib/PrinciplesContext';
-import { DiagnosticAnswers, ActionPlan, DiagnosticResponse, SchoolProfile, PrinciplePlan, EMPTY_SCHOOL_PROFILE } from './types';
+import { DiagnosticAnswers, ActionPlan, DiagnosticResponse, SchoolProfile, PrinciplePlan, EMPTY_SCHOOL_PROFILE, UploadOutcome } from './types';
 import { OrientView } from './components/OrientView';
 import { SettingsView } from './components/SettingsView';
 import { DiagnosticView } from './components/DiagnosticView';
@@ -100,6 +100,58 @@ export default function App() {
   const [planId, setPlanId] = useState<string | null>(null);
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+
+  // ---- save status + retry (see runSave) ------------------------------------
+  // The debounced saves below are fire-and-forget. Before this, a save that threw
+  // (network drop mid-edit) vanished with no feedback and no retry: the screen kept
+  // showing the unsaved value, and a refresh silently reverted it. Now each save is
+  // funnelled through runSave, which tracks status and re-queues a failed save until
+  // it succeeds (on reconnect or on a timer), with a visible indicator.
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const inflightSaves = useRef(0);
+  const failedSaves = useRef<Map<string, () => Promise<unknown>>>(new Map());
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const runSave = useCallback((key: string, fn: () => Promise<unknown>) => {
+    inflightSaves.current += 1;
+    setSaveStatus('saving');
+    Promise.resolve()
+      .then(fn)
+      .then(() => { failedSaves.current.delete(key); })
+      .catch(() => { failedSaves.current.set(key, fn); })
+      .finally(() => {
+        inflightSaves.current = Math.max(0, inflightSaves.current - 1);
+        if (inflightSaves.current > 0) return;
+        if (failedSaves.current.size > 0) {
+          setSaveStatus('error');
+        } else {
+          setSaveStatus('saved');
+          clearTimeout(savedTimer.current);
+          savedTimer.current = setTimeout(
+            () => setSaveStatus((s) => (s === 'saved' ? 'idle' : s)),
+            1500,
+          );
+        }
+      });
+  }, []);
+
+  // While a save is failing, keep retrying the failed saves — on reconnect and on a
+  // timer — until they land. Keyed by save type, so a newer edit's save replaces the
+  // stale failed one (last-write-wins, matching the rest of the app).
+  useEffect(() => {
+    if (saveStatus !== 'error') return;
+    const retry = () => {
+      const pending = Array.from(failedSaves.current.entries());
+      failedSaves.current.clear();
+      for (const [key, fn] of pending) runSave(key, fn);
+    };
+    window.addEventListener('online', retry);
+    const t = setInterval(retry, 5000);
+    return () => {
+      window.removeEventListener('online', retry);
+      clearInterval(t);
+    };
+  }, [saveStatus, runSave]);
 
   // Per-principle plans (מתחם התכנון). Lifted here so PlanView and ExportView
   // share one DB-backed source instead of each reading localStorage.
@@ -231,41 +283,49 @@ export default function App() {
   useEffect(() => {
     if (!dataLoaded || !planId) return;
     const t = setTimeout(() => {
-      for (const [order, r] of Object.entries(answers)) {
-        const uuid = orderToId[Number(order)];
-        if (uuid) saveAssessment(planId, uuid, r);
-      }
+      runSave('assessments', () =>
+        Promise.all(
+          Object.entries(answers).flatMap(([order, r]) => {
+            const uuid = orderToId[Number(order)];
+            return uuid ? [saveAssessment(planId, uuid, r)] : [];
+          }),
+        ),
+      );
     }, 700);
     return () => clearTimeout(t);
-  }, [answers, dataLoaded, planId, orderToId]);
+  }, [answers, dataLoaded, planId, orderToId, runSave]);
 
   // Persist the action-plan fields + focus anchors (debounced).
   useEffect(() => {
     if (!dataLoaded || !planId) return;
     const t = setTimeout(() => {
-      saveActionPlanFields(planId, actionPlan);
-      saveFocus(planId, actionPlan.strengths ?? [], actionPlan.breakthroughs ?? [], orderToId);
+      runSave('actionPlan', () =>
+        Promise.all([
+          saveActionPlanFields(planId, actionPlan),
+          saveFocus(planId, actionPlan.strengths ?? [], actionPlan.breakthroughs ?? [], orderToId),
+        ]),
+      );
     }, 700);
     return () => clearTimeout(t);
-  }, [actionPlan, dataLoaded, planId, orderToId]);
+  }, [actionPlan, dataLoaded, planId, orderToId, runSave]);
 
   // Persist the per-principle plans + activities (debounced).
   useEffect(() => {
     if (!dataLoaded || !planId) return;
     const t = setTimeout(() => {
-      savePrinciplePlans(planId, principlePlans, orderToId);
+      runSave('principlePlans', () => savePrinciplePlans(planId, principlePlans, orderToId));
     }, 700);
     return () => clearTimeout(t);
-  }, [principlePlans, dataLoaded, planId, orderToId]);
+  }, [principlePlans, dataLoaded, planId, orderToId, runSave]);
 
   // Persist the export-document builder config (debounced).
   useEffect(() => {
     if (!dataLoaded || !planId || !exportConfig) return;
     const t = setTimeout(() => {
-      saveExportConfig(planId, exportConfig);
+      runSave('exportConfig', () => saveExportConfig(planId, exportConfig));
     }, 700);
     return () => clearTimeout(t);
-  }, [exportConfig, dataLoaded, planId]);
+  }, [exportConfig, dataLoaded, planId, runSave]);
 
   /**
    * A school principle was deleted — drop every in-memory copy keyed by its order_index.
@@ -298,13 +358,14 @@ export default function App() {
   };
 
   // ---- school logo + attachments (Supabase Storage) -------------------------
-  const handleUploadLogo = async (file: File) => {
-    if (!schoolId) return;
-    const path = await uploadLogo(schoolId, file);
-    if (!path) return;
-    setLogoPath(path);
-    const url = await signedUrl(path);
+  const handleUploadLogo = async (file: File): Promise<UploadOutcome> => {
+    if (!schoolId) return { ok: false, error: 'לא מחוברים לבית ספר.' };
+    const res = await uploadLogo(schoolId, file);
+    if (!res.ok || !res.path) return { ok: false, error: res.error ?? 'העלאת הלוגו נכשלה.' };
+    setLogoPath(res.path);
+    const url = await signedUrl(res.path);
     setSchoolProfile((prev) => ({ ...prev, logoDataUrl: url }));
+    return { ok: true };
   };
 
   const handleRemoveLogo = async () => {
@@ -314,10 +375,15 @@ export default function App() {
     setSchoolProfile((prev) => ({ ...prev, logoDataUrl: '' }));
   };
 
-  const handleUploadFiles = async (files: File[]) => {
-    if (!schoolId) return;
-    const added = await uploadSchoolFiles(schoolId, files);
+  const handleUploadFiles = async (files: File[]): Promise<UploadOutcome> => {
+    if (!schoolId) return { ok: false, error: 'לא מחוברים לבית ספר.' };
+    const { added, failed } = await uploadSchoolFiles(schoolId, files);
     if (added.length) setSchoolProfile((prev) => ({ ...prev, files: [...prev.files, ...added] }));
+    if (failed.length) {
+      const names = failed.map((f) => f.name).join(', ');
+      return { ok: false, error: `לא הצלחנו להעלות: ${names}. נסו שם קובץ אחר או קובץ קטן יותר.` };
+    }
+    return { ok: true };
   };
 
   const handleRemoveFile = async (index: number) => {
@@ -331,10 +397,10 @@ export default function App() {
   useEffect(() => {
     if (!dataLoaded || !schoolId) return;
     const t = setTimeout(() => {
-      saveSchoolProfile(schoolId, schoolProfile);
+      runSave('schoolProfile', () => saveSchoolProfile(schoolId, schoolProfile));
     }, 700);
     return () => clearTimeout(t);
-  }, [schoolProfile, dataLoaded, schoolId]);
+  }, [schoolProfile, dataLoaded, schoolId, runSave]);
 
   // AI strategic report — persisted to plan_ai_reports (per version).
   // Bootstrap the auth session and subscribe to changes (login/logout/refresh).
@@ -877,6 +943,34 @@ export default function App() {
           <span className="font-mono text-slate-400">v{version}</span>
         </div>
       </footer>
+
+      {/* Save status — quiet unless a save is failing, then it stays up and honest:
+          the value is only in memory and will retry, so don't close the tab. */}
+      {saveStatus === 'error' ? (
+        <div
+          role="status"
+          className="fixed bottom-4 left-4 z-50 max-w-xs rounded-xl bg-rose-600 text-white shadow-lg px-4 py-3 text-xs font-bold leading-relaxed print:hidden"
+        >
+          <div className="flex items-start gap-2">
+            <i className="fa-solid fa-triangle-exclamation mt-0.5"></i>
+            <span>
+              השמירה נכשלה, כנראה בגלל חיבור לרשת. אנחנו מנסים שוב אוטומטית — אל תסגרו את
+              החלון עד שהשמירה תצליח.
+            </span>
+          </div>
+        </div>
+      ) : saveStatus !== 'idle' ? (
+        <div
+          role="status"
+          className="fixed bottom-4 left-4 z-50 rounded-full bg-white border border-slate-200 shadow-sm px-3 py-1.5 text-xs font-bold text-slate-500 print:hidden"
+        >
+          {saveStatus === 'saving' ? (
+            <span><i className="fa-solid fa-spinner fa-spin ml-1.5 text-slate-400"></i>שומר…</span>
+          ) : (
+            <span><i className="fa-solid fa-check ml-1.5 text-emerald-500"></i>נשמר</span>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -131,3 +131,6 @@ export const EMPTY_SCHOOL_PROFILE: SchoolProfile = {
   logoDataUrl: '',
   files: [],
 };
+
+/** Result of a logo/file upload, so the UI can show a real error instead of a silent no-op. */
+export type UploadOutcome = { ok: boolean; error?: string };

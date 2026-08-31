@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActionPlan, Principle, SchoolProfile } from '../types';
+import { ActionPlan, Principle, SchoolProfile, UploadOutcome } from '../types';
 import { version } from '../../package.json';
 import { usePrinciples } from '../lib/PrinciplesContext';
 import { principleTheme } from '../lib/principleTheme';
@@ -20,9 +20,9 @@ interface SettingsViewProps {
   onResetDiagnostic: () => void;
   onClose: () => void;
   /** Logo + attachments live in Supabase Storage (handled by App). */
-  onUploadLogo: (file: File) => void | Promise<void>;
+  onUploadLogo: (file: File) => Promise<UploadOutcome>;
   onRemoveLogo: () => void | Promise<void>;
-  onUploadFiles: (files: File[]) => void | Promise<void>;
+  onUploadFiles: (files: File[]) => Promise<UploadOutcome>;
   onRemoveFile: (index: number) => void | Promise<void>;
   /** Owner of any principle created here. Null until the school session resolves. */
   schoolId: string | null;
@@ -107,6 +107,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [wizard, setWizard] = useState<{ editing?: Principle } | null>(null);
   const [notice, setNotice] = useState('');
+  const [uploadError, setUploadError] = useState('');
   const [pendingDelete, setPendingDelete] = useState<Principle | null>(null);
   const [footprint, setFootprint] = useState<SchoolPrincipleFootprint | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -161,18 +162,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setPendingDelete(null);
   };
 
-  const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    onUploadLogo(file);
     e.target.value = '';
+    setUploadError('');
+    const res = await onUploadLogo(file);
+    if (res.ok) return;
+    setUploadError(res.error ?? 'ההעלאה נכשלה. נסו שוב.');
   };
 
-  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(e.target.files || []);
     if (list.length === 0) return;
-    onUploadFiles(list);
     e.target.value = '';
+    setUploadError('');
+    const res = await onUploadFiles(list);
+    if (res.ok) return;
+    setUploadError(res.error ?? 'ההעלאה נכשלה. נסו שוב.');
   };
 
   const removeFile = (idx: number) => onRemoveFile(idx);
@@ -233,6 +240,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               )}
             </div>
             <input ref={logoInput} type="file" accept="image/*" onChange={handleLogo} className="hidden" />
+            {uploadError && (
+              <p className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                {uploadError}
+              </p>
+            )}
           </div>
         </div>
 
@@ -322,6 +334,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onChange={handleFiles}
               className="hidden"
             />
+            {uploadError && (
+              <p className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                {uploadError}
+              </p>
+            )}
             {profile.files.length > 0 ? (
               <ul className="space-y-1.5">
                 {profile.files.map((f, i) => (
