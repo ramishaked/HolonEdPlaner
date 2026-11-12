@@ -50,8 +50,7 @@ end;
 $$;
 
 -- The link itself, by this app's school name. A six-year school's two logins both
--- point at its single sheet row. Three sheet schools (אורט, יונתן, הראל) have no
--- matching login yet and are left out.
+-- point at its single sheet row.
 update public.schools s set picture_name = m.sheet
 from (values
   ('אילון',            'אילון'),
@@ -67,6 +66,9 @@ from (values
   ('קוגל',             'קוגל'),
   ('חט"ב קוגל',        'קוגל'),
   ('קציר',             'קציר'),
-  ('ק"ש',              'קרית שרת')
+  ('ק"ש',              'קרית שרת'),
+  ('אורט חולון',       'אורט'),
+  ('יונתן',            'יונתן'),
+  ('הראל',             'הראל')
 ) as m(app, sheet)
 where s.name = m.app and s.picture_name is null;
