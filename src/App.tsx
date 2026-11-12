@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { version } from '../package.json';
 import { usePrinciples } from './lib/PrinciplesContext';
 import { DiagnosticAnswers, ActionPlan, DiagnosticResponse, SchoolProfile, PrinciplePlan, EMPTY_SCHOOL_PROFILE, UploadOutcome } from './types';
@@ -38,10 +38,12 @@ import { StepFooter } from './components/StepFooter';
 import { MenuSelection } from './components/PrincipleMenu';
 import { scoresFor, recommendedFocus } from './lib/scoring';
 import { AdminArea } from './components/AdminArea';
+import { PictureView } from './components/PictureView';
+import { hasPicture } from './lib/picture';
 
 // The explicit customer-journey "מתחמים" (zones). Onboarding is the entry; the
 // rest are the working zones. principle_detail is a sub-view of orient (not a zone).
-type Step = 'onboarding' | 'orient' | 'assess' | 'plan' | 'export';
+type Step = 'onboarding' | 'orient' | 'picture' | 'assess' | 'plan' | 'export';
 
 const JOURNEY_STEPS: JourneyStep[] = [
   { id: 'orient', label: 'מתחם ההכרות', icon: 'fa-solid fa-book-open' },
@@ -49,6 +51,11 @@ const JOURNEY_STEPS: JourneyStep[] = [
   { id: 'plan', label: 'מתחם התכנון', icon: 'fa-solid fa-bullseye' },
   { id: 'export', label: 'מתחם ההפקה', icon: 'fa-solid fa-file-pdf' },
 ];
+
+// "התמונה החינוכית" joins the journey only for a school that has figures in the
+// tech-matriculation sheet (the secondary schools). It sits right after orient: the
+// data comes before the self-diagnosis it informs.
+const PICTURE_STEP: JourneyStep = { id: 'picture', label: 'מתחם התמונה החינוכית', icon: 'fa-solid fa-chart-line' };
 
 export default function App() {
   // Principles (fixed municipal + this school's custom) come from the DB, with a
@@ -99,6 +106,25 @@ export default function App() {
   // overwrite what is already in the DB.
   const [planId, setPlanId] = useState<string | null>(null);
   const [schoolId, setSchoolId] = useState<string | null>(null);
+
+  // Whether this school has a "התמונה החינוכית" zone. Asked per school and reset to
+  // false first, so the previous school's answer never carries over a switch of user.
+  const [showPicture, setShowPicture] = useState(false);
+  useEffect(() => {
+    setShowPicture(false);
+    if (!schoolId) return;
+    let active = true;
+    hasPicture(schoolId).then((yes) => {
+      if (active) setShowPicture(yes);
+    });
+    return () => {
+      active = false;
+    };
+  }, [schoolId]);
+  const journeySteps = useMemo(
+    () => (showPicture ? [JOURNEY_STEPS[0], PICTURE_STEP, ...JOURNEY_STEPS.slice(1)] : JOURNEY_STEPS),
+    [showPicture],
+  );
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // ---- save status + retry (see runSave) ------------------------------------
@@ -694,7 +720,7 @@ export default function App() {
       {/* Persistent journey rail — hidden while the settings screen is open */}
       {!showSettings && (
         <JourneyRail
-          steps={JOURNEY_STEPS}
+          steps={journeySteps}
           currentStep={currentStep}
           onSelect={(id) => goToStep(id as Step)}
           assessProgress={{ done: diagnosticCompletedCount, total: principles.length }}
@@ -740,7 +766,7 @@ export default function App() {
             />
             <div className="print:hidden">
               <StepFooter
-                steps={JOURNEY_STEPS}
+                steps={journeySteps}
                 currentStep={currentStep}
                 onNavigate={(id) => goToStep(id as Step)}
               />
@@ -757,6 +783,8 @@ export default function App() {
               onAddPrinciple={openPrincipleSettings}
             />
           )}
+
+          {currentStep === 'picture' && showPicture && <PictureView key={session.user.id} />}
 
           {currentStep === 'plan' && (
             <PlanView
@@ -789,7 +817,7 @@ export default function App() {
           {/* Consistent prev/next at the bottom of every step (not onboarding) */}
           {currentStep !== 'onboarding' && (
             <StepFooter
-              steps={JOURNEY_STEPS}
+              steps={journeySteps}
               currentStep={currentStep}
               onNavigate={(id) => goToStep(id as Step)}
             />
