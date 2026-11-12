@@ -53,8 +53,8 @@ const JOURNEY_STEPS: JourneyStep[] = [
 ];
 
 // "התמונה החינוכית" joins the journey only for a school that has figures in the
-// tech-matriculation sheet (the secondary schools). It sits right after orient: the
-// data comes before the self-diagnosis it informs.
+// tech-matriculation sheet (the secondary schools). It sits last, after export (owner's
+// decision, v1.1.1): the four planning zones stay one uninterrupted run.
 const PICTURE_STEP: JourneyStep = { id: 'picture', label: 'מתחם התמונה החינוכית', icon: 'fa-solid fa-chart-line' };
 
 export default function App() {
@@ -122,7 +122,7 @@ export default function App() {
     };
   }, [schoolId]);
   const journeySteps = useMemo(
-    () => (showPicture ? [JOURNEY_STEPS[0], PICTURE_STEP, ...JOURNEY_STEPS.slice(1)] : JOURNEY_STEPS),
+    () => (showPicture ? [...JOURNEY_STEPS, PICTURE_STEP] : JOURNEY_STEPS),
     [showPicture],
   );
   const [dataLoaded, setDataLoaded] = useState(false);

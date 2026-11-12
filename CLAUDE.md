@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### מסע המשתמש (zones) — `src/App.tsx`
 `App.tsx` הוא ה-orchestrator: מחזיק את כל ה-state ברמת-העל ומנתב בין שלבי המסע (`Step`):
-`onboarding → orient → (picture) → assess → plan → export`, עם מסך **הגדרות** מחוץ למסע (נפתח מגלגל השיניים).
+`onboarding → orient → assess → plan → export → (picture)`, עם מסך **הגדרות** מחוץ למסע (נפתח מגלגל השיניים).
 - `JourneyRail` — סרגל ההתקדמות/ניווט העליון.
 - כל zone הוא קומפוננטה ב-`src/components/`: `Onboarding` (כניסה), `OrientView` (היכרות + `PrincipleDetailView`), `DiagnosticView` (אבחון בלבד), `PlanView` (קנבס פעילויות לפי עקרון), `ExportView` (בונה מסמך תוכנית עבודה + ייצוא PDF/Word + **בחירת עוגן העוצמה ויעדי פריצת הדרך**), `SettingsView` (כרטיס ביקור בית-ספרי + ניהול).
 
@@ -44,7 +44,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `src/planBank.ts` — **רק תצוגה**: `SOURCE_META`/`sourceMeta` (צבע תגית לפי מקור) + `METRICS_MOCK` (הצעות מדדים מוקאפיות). הפריטים עצמם ב-DB.
 
 ### מתחם "התמונה החינוכית" (v1.1.0) — הנתיב היחיד שמציג נתונים שאינם של הפלנר
-המתחם (`PictureView`, שלב `picture` במסע, מיד אחרי `orient`) ממסגר ב-iframe את עמוד בית הספר של דשבורד מדד הטק של חולון, אפליקציה נפרדת של קובץ אחד (`ramishaked/HolonTechDeshboard`, GitHub Pages; הכתובת ב-`api/_lib/pictureSource.ts`, משותפת ללקוח ולשרת).
+המתחם (`PictureView`, שלב `picture` במסע, **אחרון, אחרי `export`**, בהחלטת בעל המוצר (v1.1.1)) ממסגר ב-iframe את עמוד בית הספר של דשבורד מדד הטק של חולון, אפליקציה נפרדת של קובץ אחד (`ramishaked/HolonTechDeshboard`, GitHub Pages; הכתובת ב-`api/_lib/pictureSource.ts`, משותפת ללקוח ולשרת).
 - **השרת קובע איזה בית ספר, לא הדפדפן.** `api/_lib/picture.ts` (עטיפות: `api/picture.ts` ו-`server.ts`) מאמת את ה-session, קורא דרך RLS עם הטוקן של הקורא את `schools.picture_name` של בית הספר שלו, שולף את טאבי הגיליון, **מחליף את שמות שאר בתי הספר בכינוי** ומחזיר. אין שימוש ב-`service_role`. הלקוח לא שולח שם בית ספר בשום שלב.
 - **`schools.picture_name`** (מיגרציה `20261112100000`) הוא שם בית הספר בגיליון מדד הטק; null = אין מתחם. זו עמודת זהות: היא קובעת של מי הנתונים, ולכן `app.lock_school_columns` נועל אותה מפני בית הספר עצמו. בית ספר שש־שנתי עם שתי כניסות מצביע משתיהן על אותה שורה.
 - **המתחם מוצג רק כש-`hasPicture(schoolId)` מחזיר אמת**, ונכשל סגור: שגיאה = אין מתחם, לא מסע שבור. לכן הקוד בטוח גם מול מסד שהמיגרציה עוד לא הוחלה עליו.
