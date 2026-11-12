@@ -772,6 +772,7 @@ export type Database = {
           logo_path: string | null
           municipality_id: string
           name: string
+          picture_name: string | null
           principal_name: string
           principal_seniority: string
           student_count: number | null
@@ -787,6 +788,7 @@ export type Database = {
           logo_path?: string | null
           municipality_id: string
           name: string
+          picture_name?: string | null
           principal_name?: string
           principal_seniority?: string
           student_count?: number | null
@@ -802,6 +804,7 @@ export type Database = {
           logo_path?: string | null
           municipality_id?: string
           name?: string
+          picture_name?: string | null
           principal_name?: string
           principal_seniority?: string
           student_count?: number | null

@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { initiate, generate } from "./api/_lib/ai.js";
 import { handleSchoolAdmin } from "./api/_lib/admin.js";
+import { picture } from "./api/_lib/picture.js";
 
 // Load .env.local first (documented location for GEMINI_API_KEY, next to the
 // Vercel OIDC token), falling back to .env. Dev-only — prod uses Vercel env vars.
@@ -38,6 +39,14 @@ app.post("/api/ai/generate", async (req, res) => {
 // lives in api/_lib/admin.ts alongside the Vercel function (api/admin/schools.ts).
 app.post("/api/admin/schools", async (req, res) => {
   const { status, json } = await handleSchoolAdmin(req.body, req.headers.authorization);
+  res.status(status).json(json);
+});
+
+// "התמונה החינוכית": the signed-in school's own figures, other schools anonymised.
+// Shared logic in api/_lib/picture.ts alongside the Vercel function (api/picture.ts).
+app.get("/api/picture", async (req, res) => {
+  const { status, json } = await picture(req.headers.authorization);
+  res.setHeader("Cache-Control", "private, no-store");
   res.status(status).json(json);
 });
 
